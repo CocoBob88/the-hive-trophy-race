@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start -H 0.0.0.0",
     "snapshot": "node scripts/take-snapshot.mjs",
+    "snapshot:push": "node scripts/push-snapshot.mjs",
     "blob:seed": "node scripts/seed-blob.mjs"
   },
   "dependencies": {

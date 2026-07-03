@@ -28,6 +28,14 @@ npm run snapshot
 
 Snapshots are stored in the compact local database `data/trophy-race-db.json` and ignored by git. Run that command on a schedule from an IP address allowlisted in the Supercell developer portal.
 
+If Vercel cannot call the Brawl Stars API because of Supercell's IP allowlist, fetch from an allowlisted machine and push the real snapshot into production:
+
+```bash
+npm run snapshot:push
+```
+
+This posts to `SNAPSHOT_IMPORT_URL` using `SNAPSHOT_SECRET` or `CRON_SECRET`, then stores the same snapshot locally as a backup.
+
 You can also POST to the app route:
 
 ```bash
