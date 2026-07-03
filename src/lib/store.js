@@ -147,11 +147,15 @@ function addSnapshotToDatabase(database, snapshot) {
   const monthKey = snapshot.monthKey || getMonthKey(new Date(snapshot.capturedAt));
   const month = ensureMonth(database, monthKey);
 
+  month.snapshots = month.snapshots.filter((entry) => entry.capturedAt !== snapshot.capturedAt);
   month.snapshots.push(compactSnapshot({ ...snapshot, monthKey }));
   month.snapshots.sort((a, b) => new Date(a.capturedAt) - new Date(b.capturedAt));
 
+  const latestCapturedAt = month.snapshots.at(-1)?.capturedAt;
   for (const member of snapshot.members || []) {
-    month.latestMembers[member.tag] = member;
+    if (snapshot.capturedAt === latestCapturedAt || !month.latestMembers[member.tag]) {
+      month.latestMembers[member.tag] = member;
+    }
   }
 
   database.updatedAt = snapshot.capturedAt;
