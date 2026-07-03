@@ -364,6 +364,7 @@ button:disabled {
 
 .progress-panel,
 .leaderboard-panel {
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
@@ -987,7 +988,7 @@ button:disabled {
 
 @media (max-width: 680px) {
   .hero {
-    min-height: 390px;
+    min-height: 0;
   }
 
   .mode-chip {
@@ -996,74 +997,271 @@ button:disabled {
 
   .hero__content {
     width: calc(100% - 24px);
-    margin: 16px auto 20px;
+    margin: 12px auto 14px;
     padding-top: 0;
   }
 
+  .title-row {
+    gap: 8px;
+  }
+
+  .title-logo {
+    width: 36px;
+    height: 36px;
+  }
+
   .hero h1 {
-    font-size: 1.75rem;
+    font-size: 1.35rem;
+    line-height: 1.02;
   }
 
-  .hero p {
-    font-size: 1rem;
+  .title-row small {
+    margin-top: 1px;
+    font-size: 0.72rem;
   }
 
-  .hero__stats,
-  .member-card__stats,
-  .detail-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .month-row {
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .hero__eyebrow,
+  .section-kicker {
+    gap: 6px;
+    font-size: 0.78rem;
+  }
+
+  .hero__eyebrow svg,
+  .section-kicker svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .month-strip {
+    gap: 5px;
+  }
+
+  .month-strip button {
+    min-height: 26px;
+    padding: 0 8px;
+    font-size: 0.73rem;
+  }
+
+  .hero__stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+    margin-top: 8px;
+  }
+
+  .stat-tile {
+    min-height: 50px;
+    padding: 6px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+  }
+
+  .stat-tile svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .stat-tile span {
+    margin-top: 2px;
+    font-size: 0.64rem;
+    line-height: 1.05;
+  }
+
+  .stat-tile strong {
+    margin-top: 1px;
+    font-size: 0.82rem;
   }
 
   .race-band {
-    padding: 14px 10px 48px;
+    padding: 10px 8px 36px;
   }
 
   .leaderboard-panel,
   .champion-panel {
-    padding: 10px;
+    padding: 8px;
   }
 
   .leaderboard-heading h2,
   .champion-panel h2 {
-    font-size: 1.55rem;
+    font-size: 1.25rem;
+  }
+
+  .leaderboard-heading {
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .search-box {
+    min-height: 34px;
+  }
+
+  .progress-panel {
+    padding: 8px;
+  }
+
+  .panel-heading {
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .chart-cadence {
+    min-height: 26px;
+    padding: 5px 7px;
+    font-size: 0.7rem;
+  }
+
+  .chart-start-label {
+    left: 9px;
+    top: 8px;
+    padding: 3px 6px;
+    font-size: 0.66rem;
+  }
+
+  .chart-frame svg {
+    min-height: 92px;
+  }
+
+  .chart-legend {
+    width: 100%;
+    max-width: 100%;
+    flex-wrap: nowrap;
+    gap: 5px;
+    margin-top: 7px;
+    overflow-x: auto;
+    padding-bottom: 3px;
+  }
+
+  .chart-legend span {
+    flex: 0 0 auto;
+    min-height: 25px;
+    padding: 0 7px;
+    font-size: 0.68rem;
+  }
+
+  .loading-stack span {
+    height: 72px;
   }
 
   .member-card {
-    padding: 10px;
+    padding: 7px;
   }
 
   .member-card__main {
-    grid-template-columns: 42px 44px minmax(0, 1fr);
+    grid-template-columns: 32px 34px minmax(0, 1fr) auto;
+    gap: 7px;
   }
 
   .rank-badge {
-    width: 42px;
-    height: 42px;
+    width: 32px;
+    height: 32px;
+    font-size: 0.75rem;
+  }
+
+  .rank-badge svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .player-icon {
+    width: 34px;
+    height: 34px;
   }
 
   .member-card__title {
-    display: block;
+    display: flex;
   }
 
   .member-card__title h3 {
-    font-size: 1.02rem;
+    font-size: 0.9rem;
   }
 
   .member-card__title span {
-    display: block;
-    margin-top: 2px;
+    display: none;
+  }
+
+  .member-card__meta {
+    display: none;
   }
 
   .member-card__score {
-    grid-column: 1 / -1;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    text-align: left;
+    grid-column: auto;
+    min-width: 54px;
+    text-align: right;
+  }
+
+  .member-card__score span {
+    font-size: 0.62rem;
   }
 
   .member-card__score strong {
-    font-size: 1.35rem;
+    font-size: 1rem;
+  }
+
+  .progress-track {
+    display: none;
+  }
+
+  .member-card__stats {
+    grid-template-columns: 1fr;
+    gap: 0;
+    margin-top: 3px;
+  }
+
+  .member-card__stats div {
+    display: flex;
+    min-height: 20px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .member-card__stats .member-stat--wins,
+  .member-card__stats .member-stat--3v3,
+  .member-card__stats .member-stat--solo,
+  .member-card__stats .member-stat--duo,
+  .member-card__stats .member-stat--brawlers,
+  .member-card__stats .member-stat--xp {
+    display: none;
+  }
+
+  .member-card__stats span,
+  .detail-item dt {
+    font-size: 0.64rem;
+  }
+
+  .member-card__stats strong {
+    margin-top: 0;
+    font-size: 0.78rem;
+  }
+
+  .member-details {
+    margin-top: 2px;
+  }
+
+  .member-details summary {
+    min-height: 22px;
+    font-size: 0.72rem;
+  }
+
+  .detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .brawler-strip {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 3px;
+  }
+
+  .brawler-strip span {
+    min-height: 40px;
+    min-width: 118px;
+    padding: 5px 7px;
   }
 }
 
@@ -1073,8 +1271,7 @@ button:disabled {
     height: 40px;
   }
 
-  .member-card__stats,
   .detail-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

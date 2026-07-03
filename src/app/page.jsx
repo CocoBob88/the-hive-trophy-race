@@ -91,6 +91,8 @@ function PlayerIcon({ member }) {
           src={`https://cdn.brawlify.com/profile-icons/regular/${member.iconId}.png`}
           alt=""
           aria-hidden="true"
+          loading="lazy"
+          decoding="async"
           onError={(event) => {
             event.currentTarget.style.display = "none";
           }}
@@ -227,7 +229,7 @@ function ProgressChart({ timeline = [], members = [], firstSnapshotAt }) {
 
 function MemberCard({ member, maxGain }) {
   const progress = maxGain > 0 ? Math.min(100, Math.round((member.gain / maxGain) * 100)) : 0;
-  const brawlers = member.brawlers?.length ? member.brawlers.slice(0, 8) : member.topBrawlers || [];
+  const brawlers = member.topBrawlers?.length ? member.topBrawlers : member.brawlers || [];
 
   return (
     <article className="member-card">
@@ -263,34 +265,34 @@ function MemberCard({ member, maxGain }) {
       </div>
 
       <div className="member-card__stats">
-        <div>
+        <div className="member-stat member-stat--trophies">
           <span>Trophies</span>
           <strong>{formatNumber(member.trophies)}</strong>
         </div>
-        <div>
+        <div className="member-stat member-stat--wins">
           <span>Total wins</span>
           <strong>{formatOptionalNumber(member.totalVictories)}</strong>
         </div>
-        <div>
+        <div className="member-stat member-stat--3v3">
           <span>3v3 wins</span>
           <strong>{formatOptionalNumber(member.victories3v3)}</strong>
         </div>
-        <div>
+        <div className="member-stat member-stat--solo">
           <span>Solo</span>
           <strong>{formatOptionalNumber(member.soloVictories)}</strong>
         </div>
-        <div>
+        <div className="member-stat member-stat--duo">
           <span>Duo</span>
           <strong>{formatOptionalNumber(member.duoVictories)}</strong>
         </div>
-        <div>
+        <div className="member-stat member-stat--brawlers">
           <span>Brawlers</span>
           <strong>
             {formatOptionalNumber(member.brawlerCount)}
             <small>{member.power11Count !== undefined ? ` / ${member.power11Count} P11` : ""}</small>
           </strong>
         </div>
-        <div>
+        <div className="member-stat member-stat--xp">
           <span>XP level</span>
           <strong>{formatOptionalNumber(member.expLevel)}</strong>
         </div>
@@ -394,7 +396,14 @@ export default function Home() {
   return (
     <main className="page">
       <header className="hero">
-        <img className="hero__image" src="/hive-arena.png" alt="" aria-hidden="true" />
+        <img
+          className="hero__image"
+          src="/hive-arena.webp"
+          alt=""
+          aria-hidden="true"
+          fetchPriority="high"
+          decoding="async"
+        />
         <div className="hero__shade" aria-hidden="true" />
 
         <div className="hero__content">

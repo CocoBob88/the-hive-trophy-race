@@ -1,6 +1,10 @@
 import { getCompetitionConfig } from "./config.js";
 import { getMonthKey, getMonthLabel } from "./time.js";
 
+const DETAIL_BRAWLER_LIMIT = 8;
+const TIMELINE_MEMBER_LIMIT = 10;
+const TIMELINE_POINT_LIMIT = 192;
+
 function sortByGain(a, b) {
   if (b.gain !== a.gain) {
     return b.gain - a.gain;
@@ -13,6 +17,31 @@ function roleLabel(role = "member") {
   return role
     .replace(/([A-Z])/g, " $1")
     .replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function compactBrawlers(brawlers = [], limit = DETAIL_BRAWLER_LIMIT) {
+  return brawlers.slice(0, limit).map((brawler) => ({
+    id: brawler.id,
+    name: brawler.name,
+    power: brawler.power,
+    rank: brawler.rank,
+    trophies: brawler.trophies,
+    highestTrophies: brawler.highestTrophies
+  }));
+}
+
+function sampleSnapshots(snapshots, limit = TIMELINE_POINT_LIMIT) {
+  if (snapshots.length <= limit) {
+    return snapshots;
+  }
+
+  const lastIndex = snapshots.length - 1;
+  const selectedIndexes = new Set([0, lastIndex]);
+  for (let index = 1; index < limit - 1; index += 1) {
+    selectedIndexes.add(Math.round((index * lastIndex) / (limit - 1)));
+  }
+
+  return [...selectedIndexes].sort((a, b) => a - b).map((index) => snapshots[index]);
 }
 
 function applySnapshotToState(states, snapshot) {
@@ -67,6 +96,7 @@ function stateToMember(state) {
   const totalVictories =
     (member.victories3v3 || 0) + (member.soloVictories || 0) + (member.duoVictories || 0);
   const peakGap = Math.max(0, (member.highestTrophies || 0) - (state.currentTrophies || 0));
+  const brawlers = compactBrawlers(member.brawlers?.length ? member.brawlers : member.topBrawlers || []);
 
   return {
     tag: state.tag,
@@ -103,17 +133,18 @@ function stateToMember(state) {
     gadgetCount: member.gadgetCount,
     starPowerCount: member.starPowerCount,
     gearCount: member.gearCount,
-    brawlers: member.brawlers || [],
-    topBrawlers: member.topBrawlers || [],
+    brawlers,
+    topBrawlers: brawlers,
     profileFetched: member.profileFetched,
     profileError: member.profileError
   };
 }
 
-function buildTimeline(ordered, members) {
+function buildTimeline(ordered, members, options = {}) {
+  const sampledSnapshots = sampleSnapshots(ordered, options.timelinePointLimit || TIMELINE_POINT_LIMIT);
   const baselineByTag = new Map(members.map((member) => [member.tag, member]));
 
-  return ordered.map((snapshot) => ({
+  return sampledSnapshots.map((snapshot) => ({
     capturedAt: snapshot.capturedAt,
     members: snapshot.members
       .map((snapshotMember) => {
@@ -164,6 +195,7 @@ export function buildLeaderboardFromSnapshots(snapshots, options = {}) {
 
   const members = [...qualifiedMembers, ...disqualifiedMembers];
   const topMember = qualifiedMembers[0] || null;
+  const timelineMembers = qualifiedMembers.slice(0, options.timelineMemberLimit || TIMELINE_MEMBER_LIMIT);
   const clubTrophies =
     latest?.club?.trophies ?? qualifiedMembers.reduce((total, member) => total + member.trophies, 0);
 
@@ -198,6 +230,6 @@ export function buildLeaderboardFromSnapshots(snapshots, options = {}) {
     },
     topMember,
     members,
-    timeline: buildTimeline(ordered, qualifiedMembers)
+    timeline: buildTimeline(ordered, timelineMembers, options)
   };
 }

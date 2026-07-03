@@ -179,13 +179,13 @@ function pruneDatabase(database) {
   }
 }
 
-function hydrateSnapshot(month, snapshot) {
+function hydrateSnapshot(month, snapshot, includeLatestDetails = false) {
   return {
     capturedAt: snapshot.capturedAt,
     monthKey: snapshot.monthKey,
     club: snapshot.club,
     members: snapshot.members.map((member) => ({
-      ...(month.latestMembers[member.tag] || {}),
+      ...(includeLatestDetails ? month.latestMembers[member.tag] || {} : {}),
       ...member
     }))
   };
@@ -360,7 +360,8 @@ export async function readMonthSnapshots(monthKey = getMonthKey(), providedDatab
     return [];
   }
 
-  return month.snapshots.map((snapshot) => hydrateSnapshot(month, snapshot));
+  const latestIndex = month.snapshots.length - 1;
+  return month.snapshots.map((snapshot, index) => hydrateSnapshot(month, snapshot, index === latestIndex));
 }
 
 export async function listAvailableMonths() {
