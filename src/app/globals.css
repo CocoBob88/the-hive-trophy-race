@@ -74,7 +74,7 @@ button:disabled {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center;
+  object-position: center 35%;
   filter: saturate(1.12) contrast(1.04);
 }
 
@@ -263,8 +263,8 @@ button:disabled {
 
 .hero__stats {
   display: grid;
-  max-width: 1180px;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  max-width: 760px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-top: 12px;
 }
@@ -293,9 +293,55 @@ button:disabled {
   box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.14);
 }
 
+.race-status {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 32px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 200, 61, 0.28);
+  border-radius: 8px;
+  color: var(--paper);
+  background: rgba(255, 200, 61, 0.1);
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.race-status svg {
+  flex: 0 0 auto;
+  color: var(--gold);
+}
+
+.race-status span {
+  color: var(--muted);
+}
+
+.race-status strong {
+  color: var(--white);
+}
+
+.race-status em {
+  color: var(--gold);
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.race-status--winner {
+  border-color: rgba(94, 226, 128, 0.32);
+  background: rgba(94, 226, 128, 0.11);
+}
+
+.race-status--winner svg,
+.race-status--winner em {
+  color: var(--green);
+}
+
 .stat-tile {
-  min-height: 76px;
-  padding: 10px;
+  min-height: 68px;
+  padding: 9px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(22, 18, 30, 0.76);
@@ -1216,6 +1262,20 @@ button:disabled {
     min-height: 26px;
     padding: 0 8px;
     font-size: 0.73rem;
+  }
+
+  .race-status {
+    width: 100%;
+    min-height: 28px;
+    gap: 6px;
+    margin-top: 7px;
+    padding: 0 8px;
+    font-size: 0.7rem;
+  }
+
+  .race-status svg {
+    width: 14px;
+    height: 14px;
   }
 
   .hero__stats {

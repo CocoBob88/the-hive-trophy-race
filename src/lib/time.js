@@ -1,5 +1,5 @@
 export function getCompetitionTimeZone() {
-  return process.env.COMPETITION_TIME_ZONE || "America/Guatemala";
+  return "UTC";
 }
 
 export function getMonthKey(date = new Date(), timeZone = getCompetitionTimeZone()) {
@@ -32,6 +32,8 @@ export function formatDateTime(value) {
     month: "short",
     day: "numeric",
     hour: "numeric",
-    minute: "2-digit"
+    minute: "2-digit",
+    timeZone: "UTC",
+    timeZoneName: "short"
   }).format(new Date(value));
 }

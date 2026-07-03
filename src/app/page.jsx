@@ -12,8 +12,7 @@ import {
   Sparkles,
   Trophy,
   TrendingUp,
-  UserPlus,
-  Users
+  UserPlus
 } from "lucide-react";
 
 const numberFormatter = new Intl.NumberFormat("en-US");
@@ -50,7 +49,9 @@ function formatDate(value) {
     month: "short",
     day: "numeric",
     hour: "numeric",
-    minute: "2-digit"
+    minute: "2-digit",
+    timeZone: "UTC",
+    timeZoneName: "short"
   }).format(new Date(value));
 }
 
@@ -82,6 +83,68 @@ function formatCountdown(nextUpdateAt, now) {
   const seconds = totalSeconds % 60;
 
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function getMonthBoundsUtc(monthKey) {
+  if (!monthKey) {
+    return null;
+  }
+
+  const [year, month] = monthKey.split("-").map(Number);
+  if (!year || !month) {
+    return null;
+  }
+
+  return {
+    startsAt: Date.UTC(year, month - 1, 1, 0, 0, 0, 0),
+    endsAt: Date.UTC(year, month, 1, 0, 0, 0, 0)
+  };
+}
+
+function formatRaceTimeLeft(endsAt, now) {
+  const remaining = Math.max(0, endsAt - now);
+  if (remaining === 0) {
+    return "Complete";
+  }
+
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+
+  if (remaining > day) {
+    return `${Math.ceil(remaining / day)} days left`;
+  }
+
+  if (remaining > hour) {
+    return `${Math.ceil(remaining / hour)} hours left`;
+  }
+
+  return `${Math.max(1, Math.ceil(remaining / minute))} min left`;
+}
+
+function RaceStatus({ month, topMember, now }) {
+  const bounds = getMonthBoundsUtc(month?.key);
+  const monthComplete = Boolean(bounds && now >= bounds.endsAt);
+
+  if (monthComplete) {
+    return (
+      <div className="race-status race-status--winner">
+        <Crown size={16} aria-hidden="true" />
+        <span>{month?.label || "Month"} winner</span>
+        <strong>{topMember?.name || "Not set"}</strong>
+        <em>{formatGain(topMember?.gain)}</em>
+      </div>
+    );
+  }
+
+  return (
+    <div className="race-status">
+      <Clock size={16} aria-hidden="true" />
+      <span>Race ends</span>
+      <strong>{bounds ? formatRaceTimeLeft(bounds.endsAt, now) : "Loading"}</strong>
+      <em>00:00 UTC</em>
+    </div>
+  );
 }
 
 function colorForTag(tag = "") {
@@ -151,8 +214,7 @@ function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdat
   const [selectedTag, setSelectedTag] = useState("");
   const qualifiedMembers = members
     .filter((member) => member.qualified)
-    .sort((a, b) => b.gain - a.gain || b.trophies - a.trophies)
-    .slice(0, 10);
+    .sort((a, b) => b.gain - a.gain || b.trophies - a.trophies);
   const maxGain = Math.max(1, ...qualifiedMembers.map((member) => member.gain || 0));
   const width = 900;
   const height = 130;
@@ -160,7 +222,7 @@ function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdat
   const padY = 16;
   const usableWidth = width - padX * 2;
   const usableHeight = height - padY * 2;
-  const topLegend = qualifiedMembers.slice(0, 10);
+  const topLegend = qualifiedMembers;
   const chartStartedAt = firstSnapshotAt || timeline[0]?.capturedAt;
   const isUpdateDue = Boolean(isLatestMonth && nextUpdateAt && now >= nextUpdateAt);
   const activeTag = hoveredTag || selectedTag;
@@ -259,7 +321,7 @@ function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdat
                     cy={cy}
                     r="4"
                     fill={color}
-                    style={{ "--line-delay": `${memberIndex * 80}ms`, color }}
+                    style={{ "--line-delay": `${Math.min(memberIndex * 45, 900)}ms`, color }}
                   >
                     <title>
                       {member.name} {formatGain(member.gain)}
@@ -289,7 +351,7 @@ function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdat
                   stroke={color}
                   strokeWidth={member.rank <= 3 ? 1.4 : 0.7}
                   opacity={member.rank <= 6 ? 0.98 : 0.42}
-                  style={{ "--line-delay": `${memberIndex * 80}ms`, color }}
+                  style={{ "--line-delay": `${Math.min(memberIndex * 45, 900)}ms`, color }}
                 >
                   <title>
                     {member.name} {formatGain(member.gain)}
@@ -536,6 +598,7 @@ export default function Home() {
 
   const topMember = data?.topMember;
   const availableMonths = data?.availableMonths?.length ? data.availableMonths : data?.month?.key ? [data.month.key] : [];
+  const selectedMonthComplete = Boolean(getMonthBoundsUtc(data?.month?.key)?.endsAt <= now);
 
   return (
     <main className="page">
@@ -584,6 +647,8 @@ export default function Home() {
             </div>
           </div>
 
+          <RaceStatus month={data?.month} topMember={topMember} now={now} />
+
           <div className="hero__stats">
             <StatTile
               icon={Trophy}
@@ -591,26 +656,8 @@ export default function Home() {
               value={formatCompact(data?.stats?.clubTrophies)}
             />
             <StatTile
-              icon={Users}
-              label="Qualified members"
-              value={data?.stats?.qualifiedCount || 0}
-              accent="teal"
-            />
-            <StatTile
-              icon={Clock}
-              label="First snapshot"
-              value={formatDate(data?.stats?.firstSnapshotAt)}
-              accent="blue"
-            />
-            <StatTile
-              icon={Clock}
-              label="Last update"
-              value={formatDate(data?.stats?.lastUpdated)}
-              accent="magenta"
-            />
-            <StatTile
               icon={Medal}
-              label="Current leader"
+              label={selectedMonthComplete ? "Winner" : "Current leader"}
               value={topMember?.name || "Not set"}
               accent="gold"
             />

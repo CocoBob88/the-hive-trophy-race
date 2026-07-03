@@ -26,7 +26,7 @@ Supercell API keys are tied to allowed IP addresses, so the app must run from an
 npm run snapshot
 ```
 
-Snapshots are stored in the compact local database `data/trophy-race-db.json` and ignored by git. Run that command on a schedule from an IP address allowlisted in the Supercell developer portal.
+Snapshots are stored in the compact local database `data/trophy-race-db.json` and ignored by git. Run that command on a schedule from an IP address allowlisted in the Supercell developer portal. Monthly races use UTC boundaries: each race starts at `00:00 UTC` on the first day of the month and ends at `00:00 UTC` on the first day of the next month.
 
 If Vercel cannot call the Brawl Stars API because of Supercell's IP allowlist, fetch from an allowlisted machine and push the real snapshot into production:
 
@@ -36,7 +36,7 @@ npm run snapshot:push
 
 This posts to `SNAPSHOT_IMPORT_URL` using `SNAPSHOT_SECRET` or `CRON_SECRET`, then stores the same snapshot locally as a backup.
 
-On Windows, the scheduled job can run the same production push every 15 minutes:
+On Windows, the scheduled job can run the same production push every 15 minutes. For exact UTC month rollover snapshots, start the repeating task at local `18:00` in Guatemala, which is `00:00 UTC`:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-snapshot-push.ps1

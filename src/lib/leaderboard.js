@@ -2,7 +2,6 @@ import { getCompetitionConfig } from "./config.js";
 import { getMonthKey, getMonthLabel } from "./time.js";
 
 const DETAIL_BRAWLER_LIMIT = 8;
-const TIMELINE_MEMBER_LIMIT = 10;
 const TIMELINE_POINT_LIMIT = 192;
 
 function sortByGain(a, b) {
@@ -195,7 +194,7 @@ export function buildLeaderboardFromSnapshots(snapshots, options = {}) {
 
   const members = [...qualifiedMembers, ...disqualifiedMembers];
   const topMember = qualifiedMembers[0] || null;
-  const timelineMembers = qualifiedMembers.slice(0, options.timelineMemberLimit || TIMELINE_MEMBER_LIMIT);
+  const timelineMembers = qualifiedMembers.slice(0, options.timelineMemberLimit || qualifiedMembers.length);
   const clubTrophies =
     latest?.club?.trophies ?? qualifiedMembers.reduce((total, member) => total + member.trophies, 0);
 
