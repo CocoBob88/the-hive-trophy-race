@@ -46,6 +46,32 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-snapshot-p
 
 The runner writes its local log to `data/logs/snapshot-push.log`.
 
+## VPS Collector
+
+The preferred production collector location is a separate Linux project folder:
+
+```text
+/opt/the-hive-trophy-race
+```
+
+Store secrets outside git in:
+
+```text
+/etc/the-hive-trophy-race/collector.env
+```
+
+Install on Ubuntu:
+
+```bash
+sudo bash deploy/install_hive_collector_ubuntu.sh
+sudo nano /etc/the-hive-trophy-race/collector.env
+sudo systemctl start the-hive-trophy-race-collector.service
+sudo systemctl start the-hive-trophy-race-collector.timer
+systemctl list-timers the-hive-trophy-race-collector.timer
+```
+
+The timer runs `npm run snapshot:push` every 15 minutes. Supercell must allowlist the VPS public IP used by that server.
+
 You can also POST to the app route:
 
 ```bash

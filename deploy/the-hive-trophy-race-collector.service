@@ -1,0 +1,11 @@
+[Unit]
+Description=The Hive Trophy Race snapshot collector
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/the-hive-trophy-race
+EnvironmentFile=/etc/the-hive-trophy-race/collector.env
+ExecStart=/usr/bin/npm run snapshot:push
+Nice=5
