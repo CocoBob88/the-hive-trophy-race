@@ -245,7 +245,13 @@ async function backupExistingDatabase(capturedAt) {
       return;
     }
 
-    await writeBlobJson(getBackupBlobPath(capturedAt), database, { overwrite: false });
+    try {
+      await writeBlobJson(getBackupBlobPath(capturedAt), database, { overwrite: false });
+    } catch (error) {
+      if (!error.message?.includes("already exists")) {
+        throw error;
+      }
+    }
     await pruneBlobBackups();
     return;
   }
