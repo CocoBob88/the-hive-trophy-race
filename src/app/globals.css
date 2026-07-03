@@ -404,8 +404,28 @@ button:disabled {
   font-weight: 900;
 }
 
+.chart-cadence.is-due {
+  color: var(--green);
+  border-color: rgba(94, 226, 128, 0.34);
+  background: rgba(94, 226, 128, 0.12);
+}
+
 .chart-cadence svg {
   color: var(--blue);
+}
+
+.chart-cadence.is-due svg {
+  color: var(--green);
+}
+
+.chart-cadence span,
+.chart-cadence strong {
+  line-height: 1;
+}
+
+.chart-cadence strong {
+  color: var(--paper);
+  font-variant-numeric: tabular-nums;
 }
 
 .chart-frame {

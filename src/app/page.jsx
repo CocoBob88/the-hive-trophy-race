@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   Clock,
@@ -21,6 +21,8 @@ const compactFormatter = new Intl.NumberFormat("en-US", {
   notation: "compact",
   maximumFractionDigits: 1
 });
+const UPDATE_INTERVAL_MS = 15 * 60 * 1000;
+const AUTO_REFRESH_RETRY_MS = 30 * 1000;
 
 function formatNumber(value) {
   return numberFormatter.format(value || 0);
@@ -50,6 +52,36 @@ function formatDate(value) {
     hour: "numeric",
     minute: "2-digit"
   }).format(new Date(value));
+}
+
+function getNextUpdateAt(lastUpdated) {
+  if (!lastUpdated) {
+    return null;
+  }
+
+  const timestamp = new Date(lastUpdated).getTime();
+  if (Number.isNaN(timestamp)) {
+    return null;
+  }
+
+  return timestamp + UPDATE_INTERVAL_MS;
+}
+
+function formatCountdown(nextUpdateAt, now) {
+  if (!nextUpdateAt) {
+    return "Waiting";
+  }
+
+  const remaining = Math.max(0, nextUpdateAt - now);
+  if (remaining === 0) {
+    return "Updating";
+  }
+
+  const totalSeconds = Math.ceil(remaining / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
 function colorForTag(tag = "") {
@@ -114,7 +146,7 @@ function RankBadge({ member }) {
   return <div className="rank-badge">#{member.rank}</div>;
 }
 
-function ProgressChart({ timeline = [], members = [], firstSnapshotAt }) {
+function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdateAt, now, isLatestMonth }) {
   const qualifiedMembers = members
     .filter((member) => member.qualified)
     .sort((a, b) => b.gain - a.gain || b.trophies - a.trophies)
@@ -128,6 +160,7 @@ function ProgressChart({ timeline = [], members = [], firstSnapshotAt }) {
   const usableHeight = height - padY * 2;
   const topLegend = qualifiedMembers.slice(0, 10);
   const chartStartedAt = firstSnapshotAt || timeline[0]?.capturedAt;
+  const isUpdateDue = Boolean(isLatestMonth && nextUpdateAt && now >= nextUpdateAt);
 
   function xFor(index) {
     if (timeline.length <= 1) {
@@ -150,9 +183,10 @@ function ProgressChart({ timeline = [], members = [], firstSnapshotAt }) {
             Trophy progress
           </div>
         </div>
-        <div className="chart-cadence">
+        <div className={`chart-cadence${isUpdateDue ? " is-due" : ""}`} aria-live="polite">
           <Clock size={15} aria-hidden="true" />
-          15 min cadence
+          <span>{isLatestMonth ? "Next update" : "History"}</span>
+          <strong>{isLatestMonth ? formatCountdown(nextUpdateAt, now) : "Locked"}</strong>
         </div>
       </div>
 
@@ -340,10 +374,14 @@ export default function Home() {
   const [selectedMonth, setSelectedMonth] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [now, setNow] = useState(() => Date.now());
+  const [lastAutoRefreshAt, setLastAutoRefreshAt] = useState(0);
 
-  async function loadLeaderboard() {
-    setLoading(true);
-    setError("");
+  const loadLeaderboard = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setLoading(true);
+      setError("");
+    }
 
     try {
       const params = selectedMonth ? `?month=${encodeURIComponent(selectedMonth)}` : "";
@@ -355,19 +393,52 @@ export default function Home() {
       }
 
       setData(payload);
+      setError("");
       if (!selectedMonth && payload.month?.key) {
         setSelectedMonth(payload.month.key);
       }
     } catch (loadError) {
-      setError(loadError.message);
+      if (!silent) {
+        setError(loadError.message);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
-  }
+  }, [selectedMonth]);
 
   useEffect(() => {
     loadLeaderboard();
-  }, [selectedMonth]);
+  }, [loadLeaderboard]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const nextUpdateAt = useMemo(
+    () => getNextUpdateAt(data?.stats?.lastUpdated),
+    [data?.stats?.lastUpdated]
+  );
+  const latestMonthKey = data?.availableMonths?.[0] || data?.month?.key || "";
+  const isLatestMonth = !data?.month?.key || data.month.key === latestMonthKey;
+
+  useEffect(() => {
+    if (!data || !isLatestMonth || !nextUpdateAt || now < nextUpdateAt || loading) {
+      return;
+    }
+
+    if (now - lastAutoRefreshAt < AUTO_REFRESH_RETRY_MS) {
+      return;
+    }
+
+    setLastAutoRefreshAt(now);
+    loadLeaderboard({ silent: true });
+  }, [data, isLatestMonth, lastAutoRefreshAt, loadLeaderboard, loading, nextUpdateAt, now]);
 
   const filteredMembers = useMemo(() => {
     const members = (data?.members || []).filter((member) => member.qualified);
@@ -486,6 +557,9 @@ export default function Home() {
             timeline={data?.timeline || []}
             members={data?.members || []}
             firstSnapshotAt={data?.stats?.firstSnapshotAt}
+            nextUpdateAt={nextUpdateAt}
+            now={now}
+            isLatestMonth={isLatestMonth}
           />
 
           <div className="leaderboard-panel">
