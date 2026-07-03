@@ -389,8 +389,11 @@ button:disabled {
   font-size: 1.45rem;
 }
 
-.panel-heading > span {
+.chart-cadence {
+  display: inline-flex;
   min-height: 30px;
+  align-items: center;
+  gap: 6px;
   padding: 6px 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -400,13 +403,32 @@ button:disabled {
   font-weight: 900;
 }
 
+.chart-cadence svg {
+  color: var(--blue);
+}
+
 .chart-frame {
+  position: relative;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
     rgba(0, 0, 0, 0.16);
+}
+
+.chart-start-label {
+  position: absolute;
+  left: 14px;
+  top: 10px;
+  z-index: 1;
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  color: var(--muted);
+  background: rgba(13, 11, 20, 0.78);
+  font-size: 0.76rem;
+  font-weight: 850;
 }
 
 .chart-frame svg {

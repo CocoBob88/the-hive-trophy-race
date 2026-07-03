@@ -112,7 +112,7 @@ function RankBadge({ member }) {
   return <div className="rank-badge">#{member.rank}</div>;
 }
 
-function ProgressChart({ timeline = [], members = [] }) {
+function ProgressChart({ timeline = [], members = [], firstSnapshotAt }) {
   const qualifiedMembers = members
     .filter((member) => member.qualified)
     .sort((a, b) => b.gain - a.gain || b.trophies - a.trophies)
@@ -125,6 +125,7 @@ function ProgressChart({ timeline = [], members = [] }) {
   const usableWidth = width - padX * 2;
   const usableHeight = height - padY * 2;
   const topLegend = qualifiedMembers.slice(0, 10);
+  const chartStartedAt = firstSnapshotAt || timeline[0]?.capturedAt;
 
   function xFor(index) {
     if (timeline.length <= 1) {
@@ -147,10 +148,14 @@ function ProgressChart({ timeline = [], members = [] }) {
             Trophy progress
           </div>
         </div>
-        <span>{timeline.length} snapshots</span>
+        <div className="chart-cadence">
+          <Clock size={15} aria-hidden="true" />
+          15 min cadence
+        </div>
       </div>
 
       <div className="chart-frame" aria-label="Monthly player trophy gain chart">
+        {chartStartedAt ? <div className="chart-start-label">Started {formatDate(chartStartedAt)}</div> : null}
         <svg viewBox={`0 0 ${width} ${height}`} role="img">
           <line x1={padX} y1={height - padY} x2={width - padX} y2={height - padY} />
           <line x1={padX} y1={padY} x2={padX} y2={height - padY} />
@@ -468,7 +473,11 @@ export default function Home() {
 
       <section className="race-band">
         <div className="race-grid">
-          <ProgressChart timeline={data?.timeline || []} members={data?.members || []} />
+          <ProgressChart
+            timeline={data?.timeline || []}
+            members={data?.members || []}
+            firstSnapshotAt={data?.stats?.firstSnapshotAt}
+          />
 
           <div className="leaderboard-panel">
             <div className="leaderboard-heading">

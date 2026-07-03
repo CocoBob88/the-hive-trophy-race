@@ -11,5 +11,6 @@ yarn-error.log*
 pnpm-debug.log*
 data/snapshots/*.json
 data/backups/**/*.json
+data/logs/
 data/*.json
 !.gitkeep

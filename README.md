@@ -36,6 +36,14 @@ npm run snapshot:push
 
 This posts to `SNAPSHOT_IMPORT_URL` using `SNAPSHOT_SECRET` or `CRON_SECRET`, then stores the same snapshot locally as a backup.
 
+On Windows, the scheduled job can run the same production push every 15 minutes:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-snapshot-push.ps1
+```
+
+The runner writes its local log to `data/logs/snapshot-push.log`.
+
 You can also POST to the app route:
 
 ```bash

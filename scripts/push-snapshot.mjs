@@ -36,9 +36,14 @@ try {
     .slice(0, 3)
     .map((member) => `${member.rank}. ${member.name} +${member.gain}`)
     .join(" | ");
+  const stats = payload.leaderboard?.stats;
+  const importedAt = payload.imported?.lastCapturedAt || payload.imported?.capturedAt || snapshot.capturedAt;
 
   console.log(`Pushed ${snapshot.members.length} members for ${snapshot.club.name}.`);
-  console.log(`Imported at ${payload.imported?.capturedAt || snapshot.capturedAt}.`);
+  console.log(`Imported at ${importedAt}.`);
+  if (stats) {
+    console.log(`Production timeline: ${stats.snapshotCount} snapshots, latest ${stats.lastUpdated}.`);
+  }
   console.log(top ? `Top race: ${top}` : "No qualified members yet.");
 } catch (error) {
   console.error(error.message);
