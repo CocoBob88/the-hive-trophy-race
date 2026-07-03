@@ -82,7 +82,7 @@ async function readBlobJson(pathname, fallback) {
       return fallback;
     }
 
-    return JSON.parse(await new Response(blob.body).text());
+    return JSON.parse(await new Response(blob.stream).text());
   } catch (error) {
     if (error.status === 404 || error.message?.includes("not found")) {
       return fallback;
@@ -270,7 +270,7 @@ async function pruneBlobBackups() {
     .map((blob) => blob.pathname)
     .filter((pathname) => pathname.endsWith(".json"))
     .sort()
-    .slice(0, Math.max(0, result.blobs.length - RETAIN_BACKUPS));
+    .slice(0, Math.max(0, result.blobs.filter((blob) => blob.pathname.endsWith(".json")).length - RETAIN_BACKUPS));
 
   if (oldBackups.length > 0) {
     await del(oldBackups);
