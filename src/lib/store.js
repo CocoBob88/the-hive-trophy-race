@@ -9,10 +9,7 @@ const DB_BLOB_PATH = "trophy-race/trophy-race-db.json";
 const BACKUP_BLOB_PREFIX = "trophy-race/backups/db/";
 
 function isBlobConfigured() {
-  return Boolean(
-    process.env.BLOB_READ_WRITE_TOKEN ||
-      (process.env.BLOB_STORE_ID && process.env.VERCEL_OIDC_TOKEN)
-  );
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN || process.env.BLOB_STORE_ID);
 }
 
 function getBlobAccess() {
