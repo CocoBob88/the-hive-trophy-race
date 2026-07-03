@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildLeaderboardFromSnapshots } from "../../../../lib/leaderboard.js";
 import { isSnapshotAuthorized } from "../../../../lib/snapshotAuth.js";
-import { appendSnapshot } from "../../../../lib/store.js";
+import { appendSnapshots } from "../../../../lib/store.js";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -23,17 +23,21 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const snapshot = body.snapshot || body;
-    validateSnapshot(snapshot);
+    const snapshots = Array.isArray(body.snapshots) ? body.snapshots : [body.snapshot || body];
+    snapshots.forEach(validateSnapshot);
 
-    const document = await appendSnapshot(snapshot);
+    const document = await appendSnapshots(snapshots);
+    const firstSnapshot = snapshots[0];
+    const lastSnapshot = snapshots.at(-1);
 
     return NextResponse.json({
       imported: {
-        capturedAt: snapshot.capturedAt,
-        monthKey: snapshot.monthKey,
-        club: snapshot.club,
-        memberCount: snapshot.members.length
+        count: snapshots.length,
+        firstCapturedAt: firstSnapshot.capturedAt,
+        lastCapturedAt: lastSnapshot.capturedAt,
+        monthKey: lastSnapshot.monthKey,
+        club: lastSnapshot.club,
+        memberCount: lastSnapshot.members.length
       },
       leaderboard: buildLeaderboardFromSnapshots(document.snapshots)
     });

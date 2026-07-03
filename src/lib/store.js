@@ -99,6 +99,14 @@ async function writeBlobJson(pathname, value, { overwrite = true } = {}) {
   });
 }
 
+async function writeDatabase(database) {
+  if (isBlobConfigured()) {
+    await writeBlobJson(DB_BLOB_PATH, database);
+  } else {
+    await writeJsonAtomic(getDatabaseFile(), database);
+  }
+}
+
 function createEmptyDatabase() {
   return {
     version: DATABASE_VERSION,
@@ -302,13 +310,36 @@ export async function appendSnapshot(snapshot) {
   const database = await readDatabase();
   await backupExistingDatabase(snapshot.capturedAt);
   addSnapshotToDatabase(database, snapshot);
-  if (isBlobConfigured()) {
-    await writeBlobJson(DB_BLOB_PATH, database);
-  } else {
-    await writeJsonAtomic(getDatabaseFile(), database);
-  }
+  await writeDatabase(database);
 
   const monthKey = snapshot.monthKey || getMonthKey(new Date(snapshot.capturedAt));
+  return {
+    monthKey,
+    snapshots: await readMonthSnapshots(monthKey, database)
+  };
+}
+
+export async function appendSnapshots(snapshots) {
+  const database = await readDatabase();
+  const sortedSnapshots = [...snapshots].sort(
+    (a, b) => new Date(a.capturedAt) - new Date(b.capturedAt)
+  );
+  const latestSnapshot = sortedSnapshots.at(-1);
+
+  if (!latestSnapshot) {
+    return {
+      monthKey: getMonthKey(),
+      snapshots: []
+    };
+  }
+
+  await backupExistingDatabase(latestSnapshot.capturedAt);
+  for (const snapshot of sortedSnapshots) {
+    addSnapshotToDatabase(database, snapshot);
+  }
+  await writeDatabase(database);
+
+  const monthKey = latestSnapshot.monthKey || getMonthKey(new Date(latestSnapshot.capturedAt));
   return {
     monthKey,
     snapshots: await readMonthSnapshots(monthKey, database)
