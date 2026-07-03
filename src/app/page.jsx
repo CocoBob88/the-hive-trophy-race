@@ -195,7 +195,7 @@ function ProgressChart({ timeline = [], members = [] }) {
                 points={points.join(" ")}
                 fill="none"
                 stroke={color}
-                strokeWidth={member.rank <= 3 ? 4 : 2}
+                strokeWidth={member.rank <= 3 ? 1.4 : 0.7}
                 opacity={member.rank <= 6 ? 0.98 : 0.42}
               >
                 <title>

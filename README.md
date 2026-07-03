@@ -11,7 +11,7 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-Without an API token, the page shows preview data. To fetch real data, create a key at [developer.brawlstars.com](https://developer.brawlstars.com/), then copy `.env.example` to `.env.local` and set:
+The app uses real snapshot data only. To fetch data, create a key at [developer.brawlstars.com](https://developer.brawlstars.com/), then copy `.env.example` to `.env.local` and set:
 
 ```bash
 BRAWL_API_TOKEN=your_token_here
@@ -26,7 +26,7 @@ Supercell API keys are tied to allowed IP addresses, so the app must run from an
 npm run snapshot
 ```
 
-Snapshots are stored in `data/snapshots/YYYY-MM.json` and ignored by git. Run that command daily or hourly with Task Scheduler, cron, or a VPS scheduler.
+Snapshots are stored in the compact local database `data/trophy-race-db.json` and ignored by git. Run that command on a schedule from an IP address allowlisted in the Supercell developer portal.
 
 You can also POST to the app route:
 
@@ -39,6 +39,22 @@ If `SNAPSHOT_SECRET` is set, send it as a bearer token:
 ```bash
 curl -X POST http://localhost:3000/api/snapshot -H "Authorization: Bearer your_secret"
 ```
+
+## Vercel
+
+This project includes `vercel.json` with a 15-minute cron:
+
+```json
+{ "path": "/api/snapshot", "schedule": "*/15 * * * *" }
+```
+
+For deployed persistence, connect a private Vercel Blob store and set the Vercel environment variables. After creating the Blob store and pulling/setting its read-write token locally, seed the current local database:
+
+```bash
+npm run blob:seed
+```
+
+The Brawl Stars API token is IP-allowlisted. Vercel's standard serverless outbound IPs are not stable, so live cron snapshots require Vercel Static IPs, a fixed-IP proxy, or running the snapshot job from a machine/VPS whose IP is allowed in the Supercell developer portal.
 
 ## Competition Rules Implemented
 
