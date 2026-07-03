@@ -86,11 +86,7 @@ curl -X POST http://localhost:3000/api/snapshot -H "Authorization: Bearer your_s
 
 ## Vercel
 
-This project includes `vercel.json` with a 15-minute cron:
-
-```json
-{ "path": "/api/snapshot", "schedule": "*/15 * * * *" }
-```
+Vercel serves the web app and stores the imported snapshot database. The live Supercell fetch runs from the VPS collector because the Brawl Stars API token is IP-allowlisted.
 
 For deployed persistence, connect a private Vercel Blob store and set the Vercel environment variables. After creating the Blob store and pulling/setting its read-write token locally, seed the current local database:
 
@@ -98,7 +94,7 @@ For deployed persistence, connect a private Vercel Blob store and set the Vercel
 npm run blob:seed
 ```
 
-The Brawl Stars API token is IP-allowlisted. Vercel's standard serverless outbound IPs are not stable, so live cron snapshots require Vercel Static IPs, a fixed-IP proxy, or running the snapshot job from a machine/VPS whose IP is allowed in the Supercell developer portal.
+Vercel's standard serverless outbound IPs are not stable, so do not run the live Brawl Stars fetch from Vercel unless the project has Vercel Static IPs or a fixed-IP proxy.
 
 ## Competition Rules Implemented
 
