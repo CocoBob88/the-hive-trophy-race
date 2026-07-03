@@ -33,7 +33,6 @@ try {
   $output = & $npm run snapshot:push 2>&1
   $exitCode = $LASTEXITCODE
   $output | Out-File -FilePath $LogFile -Append -Encoding utf8
-  $output | Write-Output
 
   if ($exitCode -ne 0) {
     throw "npm run snapshot:push failed with exit code $exitCode."

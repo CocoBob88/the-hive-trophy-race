@@ -36,6 +36,8 @@ npm run snapshot:push
 
 This posts to `SNAPSHOT_IMPORT_URL` using `SNAPSHOT_SECRET` or `CRON_SECRET`, then stores the same snapshot locally as a backup.
 
+The scheduled Windows collector is needed when the Supercell API key is locked to the home/laptop public IP. Vercel serves the website and stores snapshots, but the allowed machine collects the Brawl Stars data and pushes it to Vercel.
+
 On Windows, the scheduled job can run the same production push every 15 minutes. Use an all-day 15-minute repeating task; it includes local `18:00` in Guatemala, which is `00:00 UTC` and captures the monthly rollover:
 
 ```powershell
