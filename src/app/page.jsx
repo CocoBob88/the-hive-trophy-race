@@ -147,6 +147,8 @@ function RankBadge({ member }) {
 }
 
 function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdateAt, now, isLatestMonth }) {
+  const [hoveredTag, setHoveredTag] = useState("");
+  const [selectedTag, setSelectedTag] = useState("");
   const qualifiedMembers = members
     .filter((member) => member.qualified)
     .sort((a, b) => b.gain - a.gain || b.trophies - a.trophies)
@@ -161,6 +163,12 @@ function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdat
   const topLegend = qualifiedMembers.slice(0, 10);
   const chartStartedAt = firstSnapshotAt || timeline[0]?.capturedAt;
   const isUpdateDue = Boolean(isLatestMonth && nextUpdateAt && now >= nextUpdateAt);
+  const activeTag = hoveredTag || selectedTag;
+  const activeMember = qualifiedMembers.find((member) => member.tag === activeTag);
+
+  function toggleSelectedTag(tag) {
+    setSelectedTag((currentTag) => (currentTag === tag ? "" : tag));
+  }
 
   function xFor(index) {
     if (timeline.length <= 1) {
@@ -192,6 +200,12 @@ function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdat
 
       <div className="chart-frame" aria-label="Monthly player trophy gain chart">
         {chartStartedAt ? <div className="chart-start-label">Started {formatDate(chartStartedAt)}</div> : null}
+        {activeMember ? (
+          <div className="chart-active-label">
+            <span>{activeMember.name}</span>
+            <strong>{formatGain(activeMember.gain)}</strong>
+          </div>
+        ) : null}
         <svg viewBox={`0 0 ${width} ${height}`} role="img">
           <line x1={padX} y1={height - padY} x2={width - padX} y2={height - padY} />
           <line x1={padX} y1={padY} x2={padX} y2={height - padY} />
@@ -206,7 +220,7 @@ function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdat
             />
           ))}
 
-          {qualifiedMembers.map((member) => {
+          {qualifiedMembers.map((member, memberIndex) => {
             const points = timeline
               .map((snapshot, index) => {
                 const point = snapshot.members.find((entry) => entry.tag === member.tag);
@@ -219,30 +233,80 @@ function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdat
             }
 
             const color = colorForTag(member.tag);
+            const isActive = activeTag === member.tag;
+            const isMuted = Boolean(activeTag && !isActive);
+            const interactiveProps = {
+              onPointerEnter: () => setHoveredTag(member.tag),
+              onPointerLeave: () => setHoveredTag(""),
+              onFocus: () => setHoveredTag(member.tag),
+              onBlur: () => setHoveredTag(""),
+              onClick: () => toggleSelectedTag(member.tag),
+              onKeyDown: (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  toggleSelectedTag(member.tag);
+                }
+              }
+            };
+
             if (points.length === 1) {
               const [cx, cy] = points[0].split(",").map(Number);
               return (
-                <circle key={member.tag} cx={cx} cy={cy} r="4" fill={color}>
-                  <title>
-                    {member.name} {formatGain(member.gain)}
-                  </title>
-                </circle>
+                <g key={member.tag} className={`chart-series${isActive ? " is-active" : ""}${isMuted ? " is-muted" : ""}`}>
+                  <circle
+                    className="chart-point"
+                    cx={cx}
+                    cy={cy}
+                    r="4"
+                    fill={color}
+                    style={{ "--line-delay": `${memberIndex * 80}ms`, color }}
+                  >
+                    <title>
+                      {member.name} {formatGain(member.gain)}
+                    </title>
+                  </circle>
+                  <circle
+                    className="chart-hit-point"
+                    cx={cx}
+                    cy={cy}
+                    r="13"
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`${member.name} ${formatGain(member.gain)}`}
+                    {...interactiveProps}
+                  />
+                </g>
               );
             }
 
             return (
-              <polyline
-                key={member.tag}
-                points={points.join(" ")}
-                fill="none"
-                stroke={color}
-                strokeWidth={member.rank <= 3 ? 1.4 : 0.7}
-                opacity={member.rank <= 6 ? 0.98 : 0.42}
-              >
-                <title>
-                  {member.name} {formatGain(member.gain)}
-                </title>
-              </polyline>
+              <g key={member.tag} className={`chart-series${isActive ? " is-active" : ""}${isMuted ? " is-muted" : ""}`}>
+                <polyline
+                  className="chart-line"
+                  points={points.join(" ")}
+                  fill="none"
+                  pathLength="1"
+                  stroke={color}
+                  strokeWidth={member.rank <= 3 ? 1.4 : 0.7}
+                  opacity={member.rank <= 6 ? 0.98 : 0.42}
+                  style={{ "--line-delay": `${memberIndex * 80}ms`, color }}
+                >
+                  <title>
+                    {member.name} {formatGain(member.gain)}
+                  </title>
+                </polyline>
+                <polyline
+                  className="chart-hit-line"
+                  points={points.join(" ")}
+                  fill="none"
+                  stroke="rgba(255, 255, 255, 0.001)"
+                  strokeWidth="18"
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`${member.name} ${formatGain(member.gain)}`}
+                  {...interactiveProps}
+                />
+              </g>
             );
           })}
         </svg>
@@ -250,23 +314,32 @@ function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdat
 
       <div className="chart-legend">
         {topLegend.map((member) => (
-          <span key={member.tag}>
+          <button
+            key={member.tag}
+            type="button"
+            className={activeTag === member.tag ? "is-active" : ""}
+            onPointerEnter={() => setHoveredTag(member.tag)}
+            onPointerLeave={() => setHoveredTag("")}
+            onFocus={() => setHoveredTag(member.tag)}
+            onBlur={() => setHoveredTag("")}
+            onClick={() => toggleSelectedTag(member.tag)}
+          >
             <i style={{ background: colorForTag(member.tag) }} />
             {member.name}
             <strong>{formatGain(member.gain)}</strong>
-          </span>
+          </button>
         ))}
       </div>
     </section>
   );
 }
 
-function MemberCard({ member, maxGain }) {
+function MemberCard({ member, maxGain, style }) {
   const progress = maxGain > 0 ? Math.min(100, Math.round((member.gain / maxGain) * 100)) : 0;
   const brawlers = member.topBrawlers?.length ? member.topBrawlers : member.brawlers || [];
 
   return (
-    <article className="member-card">
+    <article className="member-card" style={style}>
       <div className="member-card__main">
         <RankBadge member={member} />
         <PlayerIcon member={member} />
@@ -598,8 +671,16 @@ export default function Home() {
               </div>
             ) : (
               <div className="member-list">
-                {filteredMembers.map((member) => (
-                  <MemberCard key={member.tag} member={member} maxGain={maxGain} />
+                {filteredMembers.map((member, index) => (
+                  <MemberCard
+                    key={member.tag}
+                    member={member}
+                    maxGain={maxGain}
+                    style={{
+                      "--row-delay": `${Math.min(index * 36, 520)}ms`,
+                      "--progress-delay": `${160 + Math.min(index * 24, 340)}ms`
+                    }}
+                  />
                 ))}
               </div>
             )}
