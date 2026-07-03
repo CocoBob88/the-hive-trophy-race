@@ -65,7 +65,7 @@ function getNextUpdateAt(lastUpdated) {
     return null;
   }
 
-  return timestamp + UPDATE_INTERVAL_MS;
+  return Math.floor(timestamp / UPDATE_INTERVAL_MS) * UPDATE_INTERVAL_MS + UPDATE_INTERVAL_MS;
 }
 
 function formatCountdown(nextUpdateAt, now) {
@@ -75,7 +75,7 @@ function formatCountdown(nextUpdateAt, now) {
 
   const remaining = Math.max(0, nextUpdateAt - now);
   if (remaining === 0) {
-    return "Updating";
+    return "Checking";
   }
 
   const totalSeconds = Math.ceil(remaining / 1000);
@@ -128,22 +128,20 @@ function RaceStatus({ month, topMember, now }) {
 
   if (monthComplete) {
     return (
-      <div className="race-status race-status--winner">
+      <span className="title-race-chip title-race-chip--winner">
         <Crown size={16} aria-hidden="true" />
         <span>{month?.label || "Month"} winner</span>
         <strong>{topMember?.name || "Not set"}</strong>
         <em>{formatGain(topMember?.gain)}</em>
-      </div>
+      </span>
     );
   }
 
   return (
-    <div className="race-status">
+    <span className="title-race-chip">
       <Clock size={16} aria-hidden="true" />
-      <span>Race ends</span>
       <strong>{bounds ? formatRaceTimeLeft(bounds.endsAt, now) : "Loading"}</strong>
-      <em>00:00 UTC</em>
-    </div>
+    </span>
   );
 }
 
@@ -618,8 +616,11 @@ export default function Home() {
             <span className="title-logo">
               <img src="/brawl-stars-icon.png" alt="" aria-hidden="true" />
             </span>
-            <div>
-              <h1>The Hive Trophy Race</h1>
+            <div className="title-copy">
+              <div className="title-heading">
+                <h1>The Hive Trophy Race</h1>
+                <RaceStatus month={data?.month} topMember={topMember} now={now} />
+              </div>
               <small>{data?.club?.tag || "#2L9R0QPLQ"}</small>
             </div>
           </div>
@@ -646,8 +647,6 @@ export default function Home() {
               ))}
             </div>
           </div>
-
-          <RaceStatus month={data?.month} topMember={topMember} now={now} />
 
           <div className="hero__stats">
             <StatTile

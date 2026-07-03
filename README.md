@@ -36,7 +36,7 @@ npm run snapshot:push
 
 This posts to `SNAPSHOT_IMPORT_URL` using `SNAPSHOT_SECRET` or `CRON_SECRET`, then stores the same snapshot locally as a backup.
 
-On Windows, the scheduled job can run the same production push every 15 minutes. For exact UTC month rollover snapshots, start the repeating task at local `18:00` in Guatemala, which is `00:00 UTC`:
+On Windows, the scheduled job can run the same production push every 15 minutes. Use an all-day 15-minute repeating task; it includes local `18:00` in Guatemala, which is `00:00 UTC` and captures the monthly rollover:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-snapshot-push.ps1

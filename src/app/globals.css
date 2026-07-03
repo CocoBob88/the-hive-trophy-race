@@ -88,6 +88,7 @@ button:disabled {
 .hero::after {
   position: absolute;
   inset: auto 0 0;
+  z-index: 0;
   height: 86px;
   content: "";
   background: linear-gradient(180deg, rgba(22, 19, 31, 0), #17141f 82%);
@@ -186,6 +187,8 @@ button:disabled {
 }
 
 .hero__content {
+  position: relative;
+  z-index: 1;
   width: min(1180px, calc(100% - 32px));
   margin: 28px auto 22px;
   padding-top: 0;
@@ -195,6 +198,18 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.title-copy {
+  min-width: 0;
+}
+
+.title-heading {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .title-logo {
@@ -293,49 +308,52 @@ button:disabled {
   box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.14);
 }
 
-.race-status {
-  display: flex;
+.title-race-chip {
+  display: inline-flex;
   width: fit-content;
   max-width: 100%;
-  min-height: 32px;
+  min-height: 28px;
   align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-  padding: 0 10px;
+  gap: 6px;
+  padding: 0 9px;
   border: 1px solid rgba(255, 200, 61, 0.28);
   border-radius: 8px;
   color: var(--paper);
   background: rgba(255, 200, 61, 0.1);
-  font-size: 0.84rem;
+  font-size: 0.78rem;
   font-weight: 900;
+  white-space: nowrap;
 }
 
-.race-status svg {
+.title-race-chip svg {
   flex: 0 0 auto;
   color: var(--gold);
 }
 
-.race-status span {
+.title-race-chip span {
   color: var(--muted);
 }
 
-.race-status strong {
+.title-race-chip strong {
+  min-width: 0;
+  overflow: hidden;
   color: var(--white);
+  text-overflow: ellipsis;
 }
 
-.race-status em {
+.title-race-chip em {
   color: var(--gold);
   font-style: normal;
   font-variant-numeric: tabular-nums;
 }
 
-.race-status--winner {
+.title-race-chip--winner {
   border-color: rgba(94, 226, 128, 0.32);
   background: rgba(94, 226, 128, 0.11);
 }
 
-.race-status--winner svg,
-.race-status--winner em {
+.title-race-chip--winner svg,
+.title-race-chip--winner em {
   color: var(--green);
 }
 
@@ -344,7 +362,7 @@ button:disabled {
   padding: 9px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(22, 18, 30, 0.76);
+  background: rgba(22, 18, 30, 0.94);
   box-shadow: var(--shadow);
   backdrop-filter: blur(12px);
 }
@@ -1222,6 +1240,10 @@ button:disabled {
     gap: 8px;
   }
 
+  .title-heading {
+    gap: 5px;
+  }
+
   .title-logo {
     width: 36px;
     height: 36px;
@@ -1264,16 +1286,13 @@ button:disabled {
     font-size: 0.73rem;
   }
 
-  .race-status {
-    width: 100%;
-    min-height: 28px;
-    gap: 6px;
-    margin-top: 7px;
-    padding: 0 8px;
-    font-size: 0.7rem;
+  .title-race-chip {
+    min-height: 24px;
+    padding: 0 7px;
+    font-size: 0.68rem;
   }
 
-  .race-status svg {
+  .title-race-chip svg {
     width: 14px;
     height: 14px;
   }
@@ -1287,7 +1306,10 @@ button:disabled {
   .stat-tile {
     min-height: 50px;
     padding: 6px;
+    border-color: rgba(255, 255, 255, 0.24);
+    background: rgba(19, 15, 28, 0.96);
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+    backdrop-filter: none;
   }
 
   .stat-tile svg {
@@ -1297,12 +1319,14 @@ button:disabled {
 
   .stat-tile span {
     margin-top: 2px;
+    color: #d4d8ee;
     font-size: 0.64rem;
     line-height: 1.05;
   }
 
   .stat-tile strong {
     margin-top: 1px;
+    color: var(--white);
     font-size: 0.82rem;
   }
 
