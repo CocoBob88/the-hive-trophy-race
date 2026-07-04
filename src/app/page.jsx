@@ -4,16 +4,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { track } from "@vercel/analytics";
 import {
   CalendarDays,
+  BadgeCheck,
   Clock,
+  Cog,
   Crown,
   Flame,
   Medal,
   Search,
   Shield,
   Sparkles,
+  Star,
   Trophy,
   TrendingUp,
-  UserPlus
+  UserPlus,
+  Wrench,
+  Zap
 } from "lucide-react";
 
 const numberFormatter = new Intl.NumberFormat("en-US");
@@ -92,6 +97,11 @@ function gainBucket(value) {
 
 function formatNumber(value) {
   return numberFormatter.format(value || 0);
+}
+
+function numericStat(member, key) {
+  const value = Number(member?.[key]);
+  return Number.isFinite(value) ? value : 0;
 }
 
 function formatOptionalNumber(value) {
@@ -259,6 +269,109 @@ function StatTile({ icon: Icon, label, value, hint = "", accent = "gold" }) {
       <span>{label}</span>
       <strong>{value}</strong>
       {hint ? <small>{hint}</small> : null}
+    </div>
+  );
+}
+
+function addBadge(badgesByTag, tag, badge) {
+  const badges = badgesByTag.get(tag);
+  if (badges) {
+    badges.push(badge);
+  }
+}
+
+function rankedMembers(members, key, limit = 3) {
+  return [...members]
+    .filter((member) => numericStat(member, key) > 0)
+    .sort((a, b) => {
+      const statDelta = numericStat(b, key) - numericStat(a, key);
+      if (statDelta !== 0) {
+        return statDelta;
+      }
+
+      return numericStat(b, "trophies") - numericStat(a, "trophies");
+    })
+    .slice(0, limit);
+}
+
+function buildMemberBadges(members = []) {
+  const qualifiedMembers = members.filter((member) => member.qualified);
+  const badgesByTag = new Map(qualifiedMembers.map((member) => [member.tag, []]));
+  const maxBrawlers = Math.max(0, ...qualifiedMembers.map((member) => numericStat(member, "brawlerCount")));
+
+  for (const member of qualifiedMembers) {
+    const brawlerCount = numericStat(member, "brawlerCount");
+    const power11Count = numericStat(member, "power11Count");
+
+    if (maxBrawlers > 0 && brawlerCount === maxBrawlers) {
+      addBadge(badgesByTag, member.tag, {
+        id: "max-brawlers",
+        label: `Max brawlers (${formatNumber(brawlerCount)})`,
+        shortLabel: "MAX",
+        asset: "brawler",
+        tone: "gold"
+      });
+    }
+
+    if (brawlerCount > 0 && power11Count >= brawlerCount) {
+      addBadge(badgesByTag, member.tag, {
+        id: "full-p11",
+        label: `Fully Power 11 (${formatNumber(power11Count)})`,
+        shortLabel: "P11",
+        icon: BadgeCheck,
+        tone: "teal"
+      });
+    }
+  }
+
+  [
+    { key: "gadgetCount", prefix: "G", label: "gadgets", icon: Wrench, tone: "blue" },
+    { key: "starPowerCount", prefix: "SP", label: "star powers", icon: Star, tone: "magenta" },
+    { key: "gearCount", prefix: "Gear", label: "gears", icon: Cog, tone: "green" },
+    { key: "expPoints", prefix: "XP", label: "XP points", icon: Zap, tone: "red" }
+  ].forEach((config) => {
+    rankedMembers(qualifiedMembers, config.key).forEach((member, index) => {
+      const rank = index + 1;
+      addBadge(badgesByTag, member.tag, {
+        id: `${config.key}-${rank}`,
+        label: `#${rank} ${config.label}: ${formatNumber(numericStat(member, config.key))}`,
+        shortLabel: `#${rank}`,
+        prefix: config.prefix,
+        icon: config.icon,
+        tone: config.tone
+      });
+    });
+  });
+
+  return badgesByTag;
+}
+
+function MemberBadge({ badge }) {
+  const Icon = badge.icon;
+
+  return (
+    <span className={`member-badge member-badge--${badge.tone}`} title={badge.label} aria-label={badge.label}>
+      {badge.asset === "brawler" ? (
+        <img src="/brawl-stars-icon.png" alt="" aria-hidden="true" loading="lazy" decoding="async" />
+      ) : (
+        <Icon size={13} aria-hidden="true" />
+      )}
+      {badge.prefix ? <em>{badge.prefix}</em> : null}
+      <strong>{badge.shortLabel}</strong>
+    </span>
+  );
+}
+
+function MemberBadges({ badges = [] }) {
+  if (!badges.length) {
+    return null;
+  }
+
+  return (
+    <div className="member-badges" aria-label="Member badges">
+      {badges.map((badge) => (
+        <MemberBadge key={badge.id} badge={badge} />
+      ))}
     </div>
   );
 }
@@ -500,7 +613,7 @@ function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdat
   );
 }
 
-function MemberCard({ member, maxGain, style, monthKey }) {
+function MemberCard({ member, maxGain, badges = [], style, monthKey }) {
   const progress = maxGain > 0 ? Math.min(100, Math.round((member.gain / maxGain) * 100)) : 0;
   const brawlers = member.topBrawlers?.length ? member.topBrawlers : member.brawlers || [];
 
@@ -512,7 +625,10 @@ function MemberCard({ member, maxGain, style, monthKey }) {
 
         <div className="member-card__identity">
           <div className="member-card__title">
-            <h3>{member.name}</h3>
+            <div className="member-card__name-line">
+              <h3>{member.name}</h3>
+              <MemberBadges badges={badges} />
+            </div>
             <span>{member.tag}</span>
           </div>
           <div className="member-card__meta">
@@ -732,6 +848,10 @@ export default function Home() {
     () => Math.max(0, ...(data?.members || []).map((member) => member.gain || 0)),
     [data]
   );
+  const memberBadges = useMemo(
+    () => buildMemberBadges(data?.members || []),
+    [data?.members]
+  );
 
   const topMember = data?.topMember;
   const availableMonths = data?.availableMonths?.length ? data.availableMonths : data?.month?.key ? [data.month.key] : [];
@@ -887,6 +1007,7 @@ export default function Home() {
                     key={member.tag}
                     member={member}
                     maxGain={maxGain}
+                    badges={memberBadges.get(member.tag)}
                     monthKey={data?.month?.key}
                     style={{
                       "--row-delay": `${Math.min(index * 36, 520)}ms`,
