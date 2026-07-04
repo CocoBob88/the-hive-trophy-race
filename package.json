@@ -12,10 +12,15 @@
     "blob:seed": "node scripts/seed-blob.mjs"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.5.0",
+    "@vercel/speed-insights": "^2.0.0",
     "lucide-react": "latest",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest"
+  },
+  "overrides": {
+    "postcss": "8.5.10"
   }
 }

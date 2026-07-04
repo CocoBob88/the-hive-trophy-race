@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { track } from "@vercel/analytics";
 import {
   CalendarDays,
   Clock,
@@ -55,6 +56,39 @@ const CHART_COLORS = [
   "#6f9fff",
   "#ff6fb4"
 ];
+
+function trackRaceEvent(eventName, properties = {}) {
+  try {
+    track(eventName, properties);
+  } catch {
+    // Analytics should never interfere with the leaderboard UI.
+  }
+}
+
+function gainBucket(value) {
+  const gain = Math.abs(value || 0);
+  if (gain >= 1000) {
+    return "1000+";
+  }
+
+  if (gain >= 500) {
+    return "500-999";
+  }
+
+  if (gain >= 250) {
+    return "250-499";
+  }
+
+  if (gain >= 100) {
+    return "100-249";
+  }
+
+  if (gain > 0) {
+    return "1-99";
+  }
+
+  return "0";
+}
 
 function formatNumber(value) {
   return numberFormatter.format(value || 0);
@@ -272,7 +306,7 @@ function RankBadge({ member }) {
   return <div className="rank-badge">#{member.rank}</div>;
 }
 
-function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdateAt, now, isLatestMonth }) {
+function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdateAt, now, isLatestMonth, monthKey }) {
   const [hoveredTag, setHoveredTag] = useState("");
   const [selectedTag, setSelectedTag] = useState("");
   const qualifiedMembers = members
@@ -291,8 +325,15 @@ function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdat
   const activeTag = hoveredTag || selectedTag;
   const activeMember = qualifiedMembers.find((member) => member.tag === activeTag);
 
-  function toggleSelectedTag(tag) {
-    setSelectedTag((currentTag) => (currentTag === tag ? "" : tag));
+  function toggleSelectedMember(member) {
+    const willSelect = selectedTag !== member.tag;
+    setSelectedTag(willSelect ? member.tag : "");
+    trackRaceEvent("chart_member_toggled", {
+      month: monthKey || "unknown",
+      rank: member.rank || 0,
+      selected: willSelect,
+      gain_bucket: gainBucket(member.gain)
+    });
   }
 
   function xFor(index) {
@@ -365,11 +406,11 @@ function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdat
               onPointerLeave: () => setHoveredTag(""),
               onFocus: () => setHoveredTag(member.tag),
               onBlur: () => setHoveredTag(""),
-              onClick: () => toggleSelectedTag(member.tag),
+              onClick: () => toggleSelectedMember(member),
               onKeyDown: (event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-                  toggleSelectedTag(member.tag);
+                  toggleSelectedMember(member);
                 }
               }
             };
@@ -447,7 +488,7 @@ function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdat
             onPointerLeave={() => setHoveredTag("")}
             onFocus={() => setHoveredTag(member.tag)}
             onBlur={() => setHoveredTag("")}
-            onClick={() => toggleSelectedTag(member.tag)}
+            onClick={() => toggleSelectedMember(member)}
           >
             <i style={{ background: colorForMember(member, memberIndex) }} />
             {member.name}
@@ -459,7 +500,7 @@ function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdat
   );
 }
 
-function MemberCard({ member, maxGain, style }) {
+function MemberCard({ member, maxGain, style, monthKey }) {
   const progress = maxGain > 0 ? Math.min(100, Math.round((member.gain / maxGain) * 100)) : 0;
   const brawlers = member.topBrawlers?.length ? member.topBrawlers : member.brawlers || [];
 
@@ -530,7 +571,19 @@ function MemberCard({ member, maxGain, style }) {
         </div>
       </div>
 
-      <details className="member-details">
+      <details
+        className="member-details"
+        onToggle={(event) => {
+          if (event.currentTarget.open) {
+            trackRaceEvent("member_details_opened", {
+              month: monthKey || "unknown",
+              rank: member.rank || 0,
+              role: member.roleLabel || "unknown",
+              gain_bucket: gainBucket(member.gain)
+            });
+          }
+        }}
+      >
         <summary>
           <Sparkles size={16} aria-hidden="true" />
           More details
@@ -574,6 +627,8 @@ export default function Home() {
   const [error, setError] = useState("");
   const [now, setNow] = useState(() => Date.now());
   const [lastAutoRefreshAt, setLastAutoRefreshAt] = useState(0);
+  const searchTrackedRef = useRef(false);
+  const dataTrackedRef = useRef("");
 
   const loadLeaderboard = useCallback(async ({ silent = false } = {}) => {
     if (!silent) {
@@ -596,6 +651,10 @@ export default function Home() {
         setSelectedMonth(payload.month.key);
       }
     } catch (loadError) {
+      trackRaceEvent("leaderboard_load_error", {
+        month: selectedMonth || "latest",
+        silent
+      });
       if (!silent) {
         setError(loadError.message);
       }
@@ -609,6 +668,21 @@ export default function Home() {
   useEffect(() => {
     loadLeaderboard();
   }, [loadLeaderboard]);
+
+  useEffect(() => {
+    if (!data?.month?.key || dataTrackedRef.current === data.month.key) {
+      return;
+    }
+
+    dataTrackedRef.current = data.month.key;
+    trackRaceEvent("leaderboard_ready", {
+      month: data.month.key,
+      members: data.members?.length || 0,
+      timeline_points: data.timeline?.length || 0,
+      has_global_rank: Boolean(data.club?.globalRank),
+      has_country_rank: Boolean(data.club?.countryRank)
+    });
+  }, [data]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -664,6 +738,18 @@ export default function Home() {
   const selectedMonthComplete = Boolean(getMonthBoundsUtc(data?.month?.key)?.endsAt <= now);
   const clubRankLine = formatClubRankLine(data?.club);
 
+  function handleSearchChange(event) {
+    const nextQuery = event.target.value;
+    setQuery(nextQuery);
+
+    if (!searchTrackedRef.current && nextQuery.trim()) {
+      searchTrackedRef.current = true;
+      trackRaceEvent("member_search_used", {
+        month: data?.month?.key || "unknown"
+      });
+    }
+  }
+
   return (
     <main className="page">
       <header className="hero">
@@ -705,7 +791,15 @@ export default function Home() {
                   key={monthKey}
                   type="button"
                   className={monthKey === data?.month?.key ? "is-active" : ""}
-                  onClick={() => setSelectedMonth(monthKey)}
+                  onClick={() => {
+                    if (monthKey !== data?.month?.key) {
+                      trackRaceEvent("month_selected", {
+                        month: monthKey,
+                        latest: monthKey === latestMonthKey
+                      });
+                    }
+                    setSelectedMonth(monthKey);
+                  }}
                 >
                   {new Intl.DateTimeFormat("en-US", {
                     month: "short",
@@ -749,6 +843,7 @@ export default function Home() {
             nextUpdateAt={nextUpdateAt}
             now={now}
             isLatestMonth={isLatestMonth}
+            monthKey={data?.month?.key}
           />
 
           <div className="leaderboard-panel">
@@ -765,7 +860,7 @@ export default function Home() {
                 <Search size={18} aria-hidden="true" />
                 <input
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
+                  onChange={handleSearchChange}
                   placeholder="Search member"
                 />
               </label>
@@ -792,6 +887,7 @@ export default function Home() {
                     key={member.tag}
                     member={member}
                     maxGain={maxGain}
+                    monthKey={data?.month?.key}
                     style={{
                       "--row-delay": `${Math.min(index * 36, 520)}ms`,
                       "--progress-delay": `${160 + Math.min(index * 24, 340)}ms`
