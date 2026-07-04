@@ -135,7 +135,12 @@ function compactSnapshot(snapshot) {
       trophies: snapshot.club?.trophies ?? 0,
       memberCount: snapshot.club?.memberCount ?? snapshot.members?.length ?? 0,
       badgeId: snapshot.club?.badgeId ?? null,
-      requiredTrophies: snapshot.club?.requiredTrophies ?? null
+      requiredTrophies: snapshot.club?.requiredTrophies ?? null,
+      rankings: snapshot.club?.rankings || [],
+      globalRank: snapshot.club?.globalRank ?? null,
+      countryRank: snapshot.club?.countryRank ?? null,
+      countryCode: snapshot.club?.countryCode || null,
+      countryRankLabel: snapshot.club?.countryRankLabel || null
     },
     members: (snapshot.members || []).map(compactMember)
   };
