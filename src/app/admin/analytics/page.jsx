@@ -16,6 +16,30 @@ import {
 const STORAGE_KEY = "the-hive-analytics-dashboard-key";
 const numberFormatter = new Intl.NumberFormat("en-US");
 
+function getStoredAuthKey() {
+  try {
+    return window.localStorage.getItem(STORAGE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function storeAuthKey(value) {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, value);
+  } catch {
+    // The state still works for this page load if storage is unavailable.
+  }
+}
+
+function clearStoredAuthKey() {
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
 function formatNumber(value) {
   return numberFormatter.format(value || 0);
 }
@@ -89,11 +113,7 @@ export default function AnalyticsDashboard() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    try {
-      setAuthKey(window.sessionStorage.getItem(STORAGE_KEY) || "");
-    } catch {
-      setAuthKey("");
-    }
+    setAuthKey(getStoredAuthKey());
   }, []);
 
   const totals = summary?.totals || {};
@@ -148,21 +168,13 @@ export default function AnalyticsDashboard() {
       return;
     }
 
-    try {
-      window.sessionStorage.setItem(STORAGE_KEY, nextKey);
-    } catch {
-      // The state still works for this page load if storage is unavailable.
-    }
+    storeAuthKey(nextKey);
     setAuthKey(nextKey);
     setPassword("");
   }
 
   function handleLogout() {
-    try {
-      window.sessionStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // Ignore storage failures.
-    }
+    clearStoredAuthKey();
     setAuthKey("");
     setSummary(null);
   }
