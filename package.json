@@ -9,12 +9,11 @@
     "start": "next start -H 0.0.0.0",
     "snapshot": "node scripts/take-snapshot.mjs",
     "snapshot:push": "node scripts/push-snapshot.mjs",
-    "blob:seed": "node scripts/seed-blob.mjs"
+    "blob:seed": "node scripts/seed-blob.mjs",
+    "analytics:summary": "node scripts/analytics-summary.mjs"
   },
   "dependencies": {
-    "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.5.0",
-    "@vercel/speed-insights": "^2.0.0",
     "lucide-react": "latest",
     "next": "latest",
     "react": "latest",

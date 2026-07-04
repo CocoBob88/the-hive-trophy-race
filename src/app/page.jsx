@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { track } from "@vercel/analytics";
 import {
   CalendarDays,
   BadgeCheck,
@@ -61,10 +60,85 @@ const CHART_COLORS = [
   "#6f9fff",
   "#ff6fb4"
 ];
+const ANALYTICS_VISITOR_KEY = "the-hive-visitor-id";
+const ANALYTICS_SESSION_KEY = "the-hive-session-id";
+const HEARTBEAT_INTERVAL_MS = 30 * 1000;
+
+function createAnalyticsId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+function getStoredAnalyticsId(key, storageName = "localStorage") {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  try {
+    const storage = window[storageName] || window.localStorage;
+    const existing = storage.getItem(key);
+    if (existing) {
+      return existing;
+    }
+
+    const id = createAnalyticsId();
+    storage.setItem(key, id);
+    return id;
+  } catch {
+    return createAnalyticsId();
+  }
+}
 
 function trackRaceEvent(eventName, properties = {}) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
   try {
-    track(eventName, properties);
+    const payload = {
+      eventName,
+      properties,
+      occurredAt: new Date().toISOString(),
+      visitorId: getStoredAnalyticsId(ANALYTICS_VISITOR_KEY),
+      sessionId: getStoredAnalyticsId(ANALYTICS_SESSION_KEY, "sessionStorage"),
+      path: window.location.pathname,
+      search: window.location.search,
+      title: document.title,
+      referrer: document.referrer || "",
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+      language: navigator.language || "",
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight
+      },
+      screen: {
+        width: window.screen?.width || 0,
+        height: window.screen?.height || 0
+      }
+    };
+    const body = JSON.stringify(payload);
+
+    if (navigator.sendBeacon) {
+      const sent = navigator.sendBeacon(
+        "/api/analytics/collect",
+        new Blob([body], { type: "application/json" })
+      );
+      if (sent) {
+        return;
+      }
+    }
+
+    fetch("/api/analytics/collect", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body,
+      keepalive: true
+    }).catch(() => {});
   } catch {
     // Analytics should never interfere with the leaderboard UI.
   }
@@ -745,6 +819,7 @@ export default function Home() {
   const [lastAutoRefreshAt, setLastAutoRefreshAt] = useState(0);
   const searchTrackedRef = useRef(false);
   const dataTrackedRef = useRef("");
+  const pageViewTrackedRef = useRef(false);
 
   const loadLeaderboard = useCallback(async ({ silent = false } = {}) => {
     if (!silent) {
@@ -785,6 +860,13 @@ export default function Home() {
     loadLeaderboard();
   }, [loadLeaderboard]);
 
+  const nextUpdateAt = useMemo(
+    () => getNextUpdateAt(data?.stats?.lastUpdated),
+    [data?.stats?.lastUpdated]
+  );
+  const latestMonthKey = data?.availableMonths?.[0] || data?.month?.key || "";
+  const isLatestMonth = !data?.month?.key || data.month.key === latestMonthKey;
+
   useEffect(() => {
     if (!data?.month?.key || dataTrackedRef.current === data.month.key) {
       return;
@@ -801,6 +883,18 @@ export default function Home() {
   }, [data]);
 
   useEffect(() => {
+    if (pageViewTrackedRef.current || !data?.month?.key) {
+      return;
+    }
+
+    pageViewTrackedRef.current = true;
+    trackRaceEvent("page_view", {
+      month: data.month.key,
+      latest: isLatestMonth
+    });
+  }, [data?.month?.key, isLatestMonth]);
+
+  useEffect(() => {
     const timer = window.setInterval(() => {
       setNow(Date.now());
     }, 1000);
@@ -808,12 +902,24 @@ export default function Home() {
     return () => window.clearInterval(timer);
   }, []);
 
-  const nextUpdateAt = useMemo(
-    () => getNextUpdateAt(data?.stats?.lastUpdated),
-    [data?.stats?.lastUpdated]
-  );
-  const latestMonthKey = data?.availableMonths?.[0] || data?.month?.key || "";
-  const isLatestMonth = !data?.month?.key || data.month.key === latestMonthKey;
+  useEffect(() => {
+    if (!data?.month?.key) {
+      return undefined;
+    }
+
+    const heartbeat = window.setInterval(() => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+
+      trackRaceEvent("engagement_ping", {
+        month: data.month.key,
+        seconds: HEARTBEAT_INTERVAL_MS / 1000
+      });
+    }, HEARTBEAT_INTERVAL_MS);
+
+    return () => window.clearInterval(heartbeat);
+  }, [data?.month?.key]);
 
   useEffect(() => {
     if (!data || !isLatestMonth || !nextUpdateAt || now < nextUpdateAt || loading) {
