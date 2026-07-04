@@ -197,6 +197,8 @@ export function buildLeaderboardFromSnapshots(snapshots, options = {}) {
   const timelineMembers = qualifiedMembers.slice(0, options.timelineMemberLimit || qualifiedMembers.length);
   const clubTrophies =
     latest?.club?.trophies ?? qualifiedMembers.reduce((total, member) => total + member.trophies, 0);
+  const clubTrophyBaseline = ordered[0]?.club?.trophies ?? clubTrophies;
+  const clubTrophyGain = clubTrophies - clubTrophyBaseline;
 
   return {
     mode: options.mode || "live",
@@ -213,10 +215,17 @@ export function buildLeaderboardFromSnapshots(snapshots, options = {}) {
       type: latest?.club?.type || null,
       badgeId: latest?.club?.badgeId || null,
       requiredTrophies: latest?.club?.requiredTrophies ?? null,
-      trophies: clubTrophies
+      trophies: clubTrophies,
+      rankings: latest?.club?.rankings || [],
+      globalRank: latest?.club?.globalRank ?? null,
+      countryRank: latest?.club?.countryRank ?? null,
+      countryCode: latest?.club?.countryCode || null,
+      countryRankLabel: latest?.club?.countryRankLabel || null
     },
     stats: {
       clubTrophies,
+      clubTrophyBaseline,
+      clubTrophyGain,
       memberCount: latest?.members?.length || 0,
       trackedMembers: states.size,
       qualifiedCount: qualifiedMembers.length,

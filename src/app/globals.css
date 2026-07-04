@@ -372,7 +372,8 @@ button:disabled {
 }
 
 .stat-tile span,
-.stat-tile strong {
+.stat-tile strong,
+.stat-tile small {
   display: block;
 }
 
@@ -389,6 +390,17 @@ button:disabled {
   color: var(--white);
   font-size: 1.05rem;
   line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat-tile small {
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--gold);
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1328,6 +1340,11 @@ button:disabled {
     margin-top: 1px;
     color: var(--white);
     font-size: 0.82rem;
+  }
+
+  .stat-tile small {
+    margin-top: 2px;
+    font-size: 0.56rem;
   }
 
   .race-band {

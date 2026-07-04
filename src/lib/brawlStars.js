@@ -3,6 +3,10 @@ import { getMonthKey } from "./time.js";
 
 const API_BASE = "https://api.brawlstars.com/v1";
 const PROFILE_CONCURRENCY = 5;
+const CLUB_RANKINGS = [
+  { countryCode: "global", label: "Global" },
+  { countryCode: "us", label: "US" }
+];
 
 class BrawlApiError extends Error {
   constructor(message, status) {
@@ -125,10 +129,52 @@ function normalizeMember(member, profile, errorMessage) {
   };
 }
 
+async function fetchClubRanking(countryCode, label, clubTag) {
+  const rankings = await fetchBrawlJson(`/rankings/${countryCode}/clubs?limit=200`);
+  const items = Array.isArray(rankings.items) ? rankings.items : [];
+  const normalizedTag = normalizeTag(clubTag);
+  const match = items.find((rankedClub) => normalizeTag(rankedClub.tag) === normalizedTag);
+
+  return {
+    countryCode,
+    label,
+    found: Boolean(match),
+    rank: match?.rank ?? null,
+    trophies: match?.trophies ?? null,
+    checkedCount: items.length,
+    lowestRankChecked: items.at(-1)?.rank ?? null
+  };
+}
+
+async function fetchClubRankings(clubTag) {
+  return Promise.all(
+    CLUB_RANKINGS.map(async ({ countryCode, label }) => {
+      try {
+        return await fetchClubRanking(countryCode, label, clubTag);
+      } catch (error) {
+        return {
+          countryCode,
+          label,
+          found: false,
+          rank: null,
+          trophies: null,
+          checkedCount: 0,
+          lowestRankChecked: null,
+          error: error.message
+        };
+      }
+    })
+  );
+}
+
 export async function fetchClubSnapshot() {
   const config = getCompetitionConfig();
   const capturedAt = new Date().toISOString();
   const club = await fetchBrawlJson(`/clubs/${encodeTag(config.clubTag)}`);
+  const clubTag = normalizeTag(club.tag || config.clubTag);
+  const rankings = await fetchClubRankings(clubTag);
+  const globalRanking = rankings.find((ranking) => ranking.countryCode === "global") || null;
+  const countryRanking = rankings.find((ranking) => ranking.countryCode === "us") || null;
   const memberList = Array.isArray(club.members)
     ? club.members
     : (await fetchBrawlJson(`/clubs/${encodeTag(config.clubTag)}/members`)).items || [];
@@ -146,14 +192,19 @@ export async function fetchClubSnapshot() {
     capturedAt,
     monthKey: getMonthKey(new Date(capturedAt)),
     club: {
-      tag: normalizeTag(club.tag || config.clubTag),
+      tag: clubTag,
       name: club.name || config.clubName,
       description: club.description || "",
       type: club.type || null,
       badgeId: club.badgeId || null,
       requiredTrophies: club.requiredTrophies ?? null,
       trophies: club.trophies ?? members.reduce((total, member) => total + member.trophies, 0),
-      memberCount: club.members?.length || members.length
+      memberCount: club.members?.length || members.length,
+      rankings,
+      globalRank: globalRanking?.rank ?? null,
+      countryRank: countryRanking?.rank ?? null,
+      countryCode: countryRanking?.countryCode ?? null,
+      countryRankLabel: countryRanking?.label ?? null
     },
     members
   };

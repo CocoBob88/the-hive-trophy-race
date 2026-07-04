@@ -40,6 +40,19 @@ function formatGain(value) {
   return gain > 0 ? `+${formatNumber(gain)}` : "0";
 }
 
+function formatSignedGain(value) {
+  const gain = value || 0;
+  if (gain > 0) {
+    return `+${formatNumber(gain)}`;
+  }
+
+  if (gain < 0) {
+    return `-${formatNumber(Math.abs(gain))}`;
+  }
+
+  return "0";
+}
+
 function formatDate(value) {
   if (!value) {
     return "Not captured";
@@ -122,6 +135,20 @@ function formatRaceTimeLeft(endsAt, now) {
   return `${Math.max(1, Math.ceil(remaining / minute))} min left`;
 }
 
+function formatClubRankLine(club) {
+  const ranks = [];
+  if (club?.globalRank) {
+    ranks.push(`Global #${formatNumber(club.globalRank)}`);
+  }
+
+  if (club?.countryRank) {
+    const countryLabel = club.countryRankLabel || club.countryCode?.toUpperCase() || "Country";
+    ranks.push(`${countryLabel} #${formatNumber(club.countryRank)}`);
+  }
+
+  return ranks.join(" · ");
+}
+
 function RaceStatus({ month, topMember, now }) {
   const bounds = getMonthBoundsUtc(month?.key);
   const monthComplete = Boolean(bounds && now >= bounds.endsAt);
@@ -154,12 +181,13 @@ function colorForTag(tag = "") {
   return `hsl(${hash}, 86%, 63%)`;
 }
 
-function StatTile({ icon: Icon, label, value, accent = "gold" }) {
+function StatTile({ icon: Icon, label, value, hint = "", accent = "gold" }) {
   return (
     <div className={`stat-tile stat-tile--${accent}`}>
       <Icon size={20} aria-hidden="true" />
       <span>{label}</span>
       <strong>{value}</strong>
+      {hint ? <small>{hint}</small> : null}
     </div>
   );
 }
@@ -597,6 +625,7 @@ export default function Home() {
   const topMember = data?.topMember;
   const availableMonths = data?.availableMonths?.length ? data.availableMonths : data?.month?.key ? [data.month.key] : [];
   const selectedMonthComplete = Boolean(getMonthBoundsUtc(data?.month?.key)?.endsAt <= now);
+  const clubRankLine = formatClubRankLine(data?.club);
 
   return (
     <main className="page">
@@ -621,7 +650,10 @@ export default function Home() {
                 <h1>The Hive Trophy Race</h1>
                 <RaceStatus month={data?.month} topMember={topMember} now={now} />
               </div>
-              <small>{data?.club?.tag || "#2L9R0QPLQ"}</small>
+              <small>
+                {data?.club?.tag || "#2L9R0QPLQ"}
+                {clubRankLine ? ` · ${clubRankLine}` : ""}
+              </small>
             </div>
           </div>
 
@@ -653,6 +685,7 @@ export default function Home() {
               icon={Trophy}
               label="Club trophies"
               value={formatCompact(data?.stats?.clubTrophies)}
+              hint={`${formatSignedGain(data?.stats?.clubTrophyGain)} this month`}
             />
             <StatTile
               icon={Medal}
