@@ -23,6 +23,38 @@ const compactFormatter = new Intl.NumberFormat("en-US", {
 });
 const UPDATE_INTERVAL_MS = 15 * 60 * 1000;
 const AUTO_REFRESH_RETRY_MS = 30 * 1000;
+const CHART_COLORS = [
+  "#48d7ff",
+  "#ff4f7b",
+  "#4f8dff",
+  "#bd5cff",
+  "#ffad57",
+  "#5ee8b5",
+  "#ffd447",
+  "#ff66d8",
+  "#8af06c",
+  "#7c7dff",
+  "#ff7a45",
+  "#39d2c8",
+  "#e8f06c",
+  "#f05f96",
+  "#78a8ff",
+  "#d06cff",
+  "#70e0ff",
+  "#ffa7cf",
+  "#a6ff8a",
+  "#ffcf70",
+  "#70ffd9",
+  "#b8a2ff",
+  "#ff8d8d",
+  "#9de1ff",
+  "#d8ff6f",
+  "#ffb36f",
+  "#6fff9f",
+  "#c66fff",
+  "#6f9fff",
+  "#ff6fb4"
+];
 
 function formatNumber(value) {
   return numberFormatter.format(value || 0);
@@ -182,6 +214,10 @@ function colorForTag(tag = "") {
   return `hsl(${hash}, 86%, 63%)`;
 }
 
+function colorForMember(member, index) {
+  return CHART_COLORS[index] || colorForTag(member.tag);
+}
+
 function StatTile({ icon: Icon, label, value, hint = "", accent = "gold" }) {
   return (
     <div className={`stat-tile stat-tile--${accent}`}>
@@ -321,7 +357,7 @@ function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdat
               return null;
             }
 
-            const color = colorForTag(member.tag);
+            const color = colorForMember(member, memberIndex);
             const isActive = activeTag === member.tag;
             const isMuted = Boolean(activeTag && !isActive);
             const interactiveProps = {
@@ -402,7 +438,7 @@ function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdat
       </div>
 
       <div className="chart-legend">
-        {topLegend.map((member) => (
+        {topLegend.map((member, memberIndex) => (
           <button
             key={member.tag}
             type="button"
@@ -413,7 +449,7 @@ function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdat
             onBlur={() => setHoveredTag("")}
             onClick={() => toggleSelectedTag(member.tag)}
           >
-            <i style={{ background: colorForTag(member.tag) }} />
+            <i style={{ background: colorForMember(member, memberIndex) }} />
             {member.name}
             <strong>{formatGain(member.gain)}</strong>
           </button>
