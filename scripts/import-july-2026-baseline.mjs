@@ -44,7 +44,7 @@ const baselineRows = [
   { rank: 24, tag: "#Q9V9YQ2JG", trophies: 139_156 },
   { rank: 25, tag: "#990V8RRUR", trophies: 138_590 },
   { rank: 26, tag: "#2LLGJVPR8", trophies: 138_005 },
-  { rank: 27, tag: "#L98YV9L8G", trophies: 131_107 },
+  { rank: 27, tag: "#L98YV9L8G", name: "ML|braddagoat", role: "senior", trophies: 131_107 },
   { rank: 28, tag: "#8RC8VVQJ8", trophies: 129_910 },
   {
     rank: 29,
@@ -60,7 +60,7 @@ function displayName(row, knownMember) {
     return "[masked]";
   }
 
-  return knownMember?.name || row.tag;
+  return knownMember?.name || row.name || row.tag;
 }
 
 function formatNumber(value) {
@@ -87,7 +87,7 @@ for (const snapshot of snapshots) {
 }
 
 const rowsForImport = baselineRows.filter((row) => includeReview || !row.review);
-const missingRows = rowsForImport.filter((row) => !knownMembers.has(row.tag));
+const missingRows = rowsForImport.filter((row) => !knownMembers.has(row.tag) && !row.name);
 
 if (missingRows.length > 0) {
   console.error("These baseline rows could not be matched to known API tags:");
@@ -102,10 +102,10 @@ const members = rowsForImport.map((row) => {
   const knownMember = knownMembers.get(row.tag);
   return {
     tag: row.tag,
-    name: knownMember.name,
-    role: knownMember.role || "member",
+    name: knownMember?.name || row.name,
+    role: knownMember?.role || row.role || "member",
     trophies: row.trophies,
-    iconId: knownMember.iconId || null
+    iconId: knownMember?.iconId || null
   };
 });
 
