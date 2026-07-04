@@ -18,7 +18,8 @@ import {
 const numberFormatter = new Intl.NumberFormat("en-US");
 const compactFormatter = new Intl.NumberFormat("en-US", {
   notation: "compact",
-  maximumFractionDigits: 1
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
 });
 const UPDATE_INTERVAL_MS = 15 * 60 * 1000;
 const AUTO_REFRESH_RETRY_MS = 30 * 1000;
