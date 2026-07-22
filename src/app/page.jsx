@@ -63,6 +63,23 @@ const CHART_COLORS = [
 const ANALYTICS_VISITOR_KEY = "the-hive-visitor-id";
 const ANALYTICS_SESSION_KEY = "the-hive-session-id";
 const HEARTBEAT_INTERVAL_MS = 30 * 1000;
+const LEADERBOARD_MODES = [
+  {
+    id: "gain",
+    label: "Monthly Climb",
+    title: "Monthly climb"
+  },
+  {
+    id: "trophies",
+    label: "Total Trophies",
+    title: "Total trophies"
+  },
+  {
+    id: "velocity",
+    label: "Trophy Velocity",
+    title: "Trophy velocity"
+  }
+];
 
 function createAnalyticsId() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -202,6 +219,38 @@ function formatSignedGain(value) {
   }
 
   return "0";
+}
+
+function formatVelocity(value) {
+  const velocity = Number(value) || 0;
+  const rounded = Math.round(Math.abs(velocity));
+
+  if (velocity > 0) {
+    return `+${formatNumber(rounded)}/h`;
+  }
+
+  if (velocity < 0) {
+    return `-${formatNumber(rounded)}/h`;
+  }
+
+  return "0/h";
+}
+
+function formatActiveTime(hours) {
+  const numericHours = Number(hours) || 0;
+  if (numericHours <= 0) {
+    return "0h";
+  }
+
+  if (numericHours < 1) {
+    return `${Math.max(1, Math.round(numericHours * 60))}m`;
+  }
+
+  return `${numericHours.toFixed(numericHours < 10 ? 1 : 0)}h`;
+}
+
+function formatBurst(value) {
+  return value > 0 ? `+${formatNumber(value)}` : "0";
 }
 
 function formatDate(value) {
@@ -418,6 +467,73 @@ function buildMemberBadges(members = []) {
   });
 
   return badgesByTag;
+}
+
+function getLeaderboardMode(mode) {
+  return LEADERBOARD_MODES.find((entry) => entry.id === mode) || LEADERBOARD_MODES[0];
+}
+
+function getMemberMetric(member, mode) {
+  if (mode === "trophies") {
+    return numericStat(member, "trophies");
+  }
+
+  if (mode === "velocity") {
+    return Math.max(0, numericStat(member, "trophyVelocityPerActiveHour"));
+  }
+
+  return numericStat(member, "gain");
+}
+
+function getMemberScore(member, mode) {
+  if (mode === "trophies") {
+    return {
+      label: "Trophies",
+      value: formatNumber(member.trophies),
+      hint: `${formatGain(member.gain)} gain`
+    };
+  }
+
+  if (mode === "velocity") {
+    return {
+      label: "Trophies/hour",
+      value: formatVelocity(member.trophyVelocityPerActiveHour),
+      hint: `${formatActiveTime(member.activeHours)} active`
+    };
+  }
+
+  return {
+    label: "Monthly gain",
+    value: formatGain(member.gain),
+    hint: ""
+  };
+}
+
+function hasVelocitySample(member) {
+  return numericStat(member, "activeMinutes") >= 60 && numericStat(member, "activeIntervals") >= 4;
+}
+
+function sortMembersForMode(a, b, mode) {
+  if (mode === "trophies") {
+    return b.trophies - a.trophies || b.gain - a.gain;
+  }
+
+  if (mode === "velocity") {
+    const sampleDelta = Number(hasVelocitySample(b)) - Number(hasVelocitySample(a));
+    if (sampleDelta !== 0) {
+      return sampleDelta;
+    }
+
+    return (
+      numericStat(b, "trophyVelocityPerActiveHour") -
+        numericStat(a, "trophyVelocityPerActiveHour") ||
+      numericStat(b, "activeNetGain") - numericStat(a, "activeNetGain") ||
+      numericStat(b, "activeMinutes") - numericStat(a, "activeMinutes") ||
+      b.gain - a.gain
+    );
+  }
+
+  return b.gain - a.gain || b.trophies - a.trophies;
 }
 
 function MemberBadge({ badge }) {
@@ -687,12 +803,16 @@ function ProgressChart({ timeline = [], members = [], firstSnapshotAt, nextUpdat
   );
 }
 
-function MemberCard({ member, maxGain, badges = [], style, monthKey }) {
-  const progress = maxGain > 0 ? Math.min(100, Math.round((member.gain / maxGain) * 100)) : 0;
+function MemberCard({ member, maxMetricValue, badges = [], style, monthKey, leaderboardMode }) {
+  const score = getMemberScore(member, leaderboardMode);
+  const metricValue = getMemberMetric(member, leaderboardMode);
+  const progress =
+    maxMetricValue > 0 ? Math.min(100, Math.round((metricValue / maxMetricValue) * 100)) : 0;
   const brawlers = member.topBrawlers?.length ? member.topBrawlers : member.brawlers || [];
+  const isVelocityMode = leaderboardMode === "velocity";
 
   return (
-    <article className="member-card" style={style}>
+    <article className={`member-card member-card--${leaderboardMode}`} style={style}>
       <div className="member-card__main">
         <RankBadge member={member} />
         <PlayerIcon member={member} />
@@ -718,8 +838,9 @@ function MemberCard({ member, maxGain, badges = [], style, monthKey }) {
         </div>
 
         <div className="member-card__score">
-          <span>Monthly gain</span>
-          <strong>{formatGain(member.gain)}</strong>
+          <span>{score.label}</span>
+          <strong>{score.value}</strong>
+          {score.hint ? <small>{score.hint}</small> : null}
         </div>
       </div>
 
@@ -732,33 +853,60 @@ function MemberCard({ member, maxGain, badges = [], style, monthKey }) {
           <span>Trophies</span>
           <strong>{formatNumber(member.trophies)}</strong>
         </div>
-        <div className="member-stat member-stat--wins">
-          <span>Total wins</span>
-          <strong>{formatOptionalNumber(member.totalVictories)}</strong>
-        </div>
-        <div className="member-stat member-stat--3v3">
-          <span>3v3 wins</span>
-          <strong>{formatOptionalNumber(member.victories3v3)}</strong>
-        </div>
-        <div className="member-stat member-stat--solo">
-          <span>Solo</span>
-          <strong>{formatOptionalNumber(member.soloVictories)}</strong>
-        </div>
-        <div className="member-stat member-stat--duo">
-          <span>Duo</span>
-          <strong>{formatOptionalNumber(member.duoVictories)}</strong>
-        </div>
-        <div className="member-stat member-stat--brawlers">
-          <span>Brawlers</span>
-          <strong>
-            {formatOptionalNumber(member.brawlerCount)}
-            <small>{member.power11Count !== undefined ? ` / ${member.power11Count} P11` : ""}</small>
-          </strong>
-        </div>
-        <div className="member-stat member-stat--xp">
-          <span>XP level</span>
-          <strong>{formatOptionalNumber(member.expLevel)}</strong>
-        </div>
+        {isVelocityMode ? (
+          <>
+            <div className="member-stat member-stat--gain">
+              <span>Monthly gain</span>
+              <strong>{formatGain(member.gain)}</strong>
+            </div>
+            <div className="member-stat member-stat--active-time">
+              <span>Active time</span>
+              <strong>{formatActiveTime(member.activeHours)}</strong>
+            </div>
+            <div className="member-stat member-stat--velocity">
+              <span>Net active gain</span>
+              <strong>{formatSignedGain(member.activeNetGain)}</strong>
+            </div>
+            <div className="member-stat member-stat--best-burst">
+              <span>Best burst</span>
+              <strong>{formatBurst(member.bestActiveIntervalGain)}</strong>
+            </div>
+            <div className="member-stat member-stat--sample">
+              <span>Sample</span>
+              <strong>{member.trophyVelocitySampleLabel}</strong>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="member-stat member-stat--wins">
+              <span>Total wins</span>
+              <strong>{formatOptionalNumber(member.totalVictories)}</strong>
+            </div>
+            <div className="member-stat member-stat--3v3">
+              <span>3v3 wins</span>
+              <strong>{formatOptionalNumber(member.victories3v3)}</strong>
+            </div>
+            <div className="member-stat member-stat--solo">
+              <span>Solo</span>
+              <strong>{formatOptionalNumber(member.soloVictories)}</strong>
+            </div>
+            <div className="member-stat member-stat--duo">
+              <span>Duo</span>
+              <strong>{formatOptionalNumber(member.duoVictories)}</strong>
+            </div>
+            <div className="member-stat member-stat--brawlers">
+              <span>Brawlers</span>
+              <strong>
+                {formatOptionalNumber(member.brawlerCount)}
+                <small>{member.power11Count !== undefined ? ` / ${member.power11Count} P11` : ""}</small>
+              </strong>
+            </div>
+            <div className="member-stat member-stat--xp">
+              <span>XP level</span>
+              <strong>{formatOptionalNumber(member.expLevel)}</strong>
+            </div>
+          </>
+        )}
       </div>
 
       <details
@@ -782,6 +930,10 @@ function MemberCard({ member, maxGain, badges = [], style, monthKey }) {
         <dl className="detail-grid">
           <DetailItem label="Baseline trophies" value={formatNumber(member.baselineTrophies)} />
           <DetailItem label="Race baseline" value={formatDate(member.baselineAt)} />
+          <DetailItem label="Trophy velocity" value={formatVelocity(member.trophyVelocityPerActiveHour)} />
+          <DetailItem label="Active time" value={formatActiveTime(member.activeHours)} />
+          <DetailItem label="Active intervals" value={formatOptionalNumber(member.activeIntervals)} />
+          <DetailItem label="Best burst" value={formatBurst(member.bestActiveIntervalGain)} />
           <DetailItem label="XP points" value={formatOptionalNumber(member.expPoints)} />
           <DetailItem label="Profile icon ID" value={member.iconId || "N/A"} />
           <DetailItem label="Power 11 brawlers" value={formatOptionalNumber(member.power11Count)} />
@@ -817,6 +969,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [now, setNow] = useState(() => Date.now());
   const [lastAutoRefreshAt, setLastAutoRefreshAt] = useState(0);
+  const [leaderboardMode, setLeaderboardMode] = useState("gain");
   const searchTrackedRef = useRef(false);
   const dataTrackedRef = useRef("");
   const pageViewTrackedRef = useRef(false);
@@ -934,11 +1087,21 @@ export default function Home() {
     loadLeaderboard({ silent: true });
   }, [data, isLatestMonth, lastAutoRefreshAt, loadLeaderboard, loading, nextUpdateAt, now]);
 
-  const filteredMembers = useMemo(() => {
+  const rankedModeMembers = useMemo(() => {
     const members = (data?.members || []).filter((member) => member.qualified);
+    return [...members]
+      .sort((a, b) => sortMembersForMode(a, b, leaderboardMode))
+      .map((member, index) => ({
+        ...member,
+        monthlyRank: member.rank,
+        rank: index + 1
+      }));
+  }, [data, leaderboardMode]);
+
+  const filteredMembers = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    return members.filter((member) => {
+    return rankedModeMembers.filter((member) => {
       if (!normalizedQuery) {
         return true;
       }
@@ -948,11 +1111,11 @@ export default function Home() {
         .toLowerCase()
         .includes(normalizedQuery);
     });
-  }, [data, query]);
+  }, [query, rankedModeMembers]);
 
-  const maxGain = useMemo(
-    () => Math.max(0, ...(data?.members || []).map((member) => member.gain || 0)),
-    [data]
+  const maxMetricValue = useMemo(
+    () => Math.max(0, ...rankedModeMembers.map((member) => getMemberMetric(member, leaderboardMode))),
+    [leaderboardMode, rankedModeMembers]
   );
   const memberBadges = useMemo(
     () => buildMemberBadges(data?.members || []),
@@ -963,6 +1126,7 @@ export default function Home() {
   const availableMonths = data?.availableMonths?.length ? data.availableMonths : data?.month?.key ? [data.month.key] : [];
   const selectedMonthComplete = Boolean(getMonthBoundsUtc(data?.month?.key)?.endsAt <= now);
   const clubRankLine = formatClubRankLine(data?.club);
+  const leaderboardModeConfig = getLeaderboardMode(leaderboardMode);
 
   function handleSearchChange(event) {
     const nextQuery = event.target.value;
@@ -974,6 +1138,18 @@ export default function Home() {
         month: data?.month?.key || "unknown"
       });
     }
+  }
+
+  function handleLeaderboardModeChange(nextMode) {
+    if (nextMode === leaderboardMode) {
+      return;
+    }
+
+    setLeaderboardMode(nextMode);
+    trackRaceEvent("leaderboard_mode_selected", {
+      month: data?.month?.key || "unknown",
+      mode: nextMode
+    });
   }
 
   return (
@@ -1079,7 +1255,7 @@ export default function Home() {
                   <Crown size={18} aria-hidden="true" />
                   Qualified leaderboard
                 </div>
-                <h2>Monthly climb</h2>
+                <h2>{leaderboardModeConfig.title}</h2>
               </div>
 
               <label className="search-box">
@@ -1090,6 +1266,21 @@ export default function Home() {
                   placeholder="Search member"
                 />
               </label>
+            </div>
+
+            <div className="filter-tabs leaderboard-tabs" role="tablist" aria-label="Leaderboard mode">
+              {LEADERBOARD_MODES.map((mode) => (
+                <button
+                  key={mode.id}
+                  type="button"
+                  className={leaderboardMode === mode.id ? "is-active" : ""}
+                  role="tab"
+                  aria-selected={leaderboardMode === mode.id}
+                  onClick={() => handleLeaderboardModeChange(mode.id)}
+                >
+                  {mode.label}
+                </button>
+              ))}
             </div>
 
             {error ? <div className="error-banner">{error}</div> : null}
@@ -1112,9 +1303,10 @@ export default function Home() {
                   <MemberCard
                     key={member.tag}
                     member={member}
-                    maxGain={maxGain}
+                    maxMetricValue={maxMetricValue}
                     badges={memberBadges.get(member.tag)}
                     monthKey={data?.month?.key}
+                    leaderboardMode={leaderboardMode}
                     style={{
                       "--row-delay": `${Math.min(index * 36, 520)}ms`,
                       "--progress-delay": `${160 + Math.min(index * 24, 340)}ms`

@@ -3,6 +3,7 @@ import { getMonthKey, getMonthLabel } from "./time.js";
 
 const DETAIL_BRAWLER_LIMIT = 8;
 const TIMELINE_POINT_LIMIT = 192;
+const ACTIVE_INTERVAL_MAX_MINUTES = 35;
 
 function sortByGain(a, b) {
   if (b.gain !== a.gain) {
@@ -88,7 +89,83 @@ function applySnapshotToState(states, snapshot) {
   }
 }
 
-function stateToMember(state) {
+function createActivityStat(member) {
+  return {
+    tag: member.tag,
+    name: member.name,
+    activeMinutes: 0,
+    activeIntervals: 0,
+    activeDays: new Set(),
+    activeNetGain: 0,
+    activePositiveGain: 0,
+    activeLosses: 0,
+    bestActiveIntervalGain: 0,
+    firstActiveAt: null,
+    lastActiveAt: null
+  };
+}
+
+function getSampleLabel(activeMinutes = 0, activeIntervals = 0) {
+  if (activeMinutes <= 0 || activeIntervals <= 0) {
+    return "No sample";
+  }
+
+  if (activeMinutes < 60 || activeIntervals < 4) {
+    return "Small sample";
+  }
+
+  if (activeMinutes >= 300) {
+    return "Strong sample";
+  }
+
+  return "Good sample";
+}
+
+function buildActivityStats(ordered, options = {}) {
+  const maxIntervalMinutes = options.activeIntervalMaxMinutes || ACTIVE_INTERVAL_MAX_MINUTES;
+  const stats = new Map();
+
+  for (let index = 1; index < ordered.length; index += 1) {
+    const previous = ordered[index - 1];
+    const current = ordered[index];
+    const intervalMinutes = (new Date(current.capturedAt) - new Date(previous.capturedAt)) / 60000;
+
+    if (intervalMinutes <= 0 || intervalMinutes > maxIntervalMinutes) {
+      continue;
+    }
+
+    const previousMembers = new Map((previous.members || []).map((member) => [member.tag, member]));
+
+    for (const currentMember of current.members || []) {
+      const previousMember = previousMembers.get(currentMember.tag);
+      if (!previousMember) {
+        continue;
+      }
+
+      const delta = (currentMember.trophies || 0) - (previousMember.trophies || 0);
+      if (delta === 0) {
+        continue;
+      }
+
+      const stat = stats.get(currentMember.tag) || createActivityStat(currentMember);
+      stat.name = currentMember.name || stat.name;
+      stat.activeMinutes += intervalMinutes;
+      stat.activeIntervals += 1;
+      stat.activeNetGain += delta;
+      stat.activePositiveGain += Math.max(0, delta);
+      stat.activeLosses += Math.max(0, -delta);
+      stat.bestActiveIntervalGain = Math.max(stat.bestActiveIntervalGain, delta);
+      stat.firstActiveAt ||= previous.capturedAt;
+      stat.lastActiveAt = current.capturedAt;
+      stat.activeDays.add(current.capturedAt.slice(0, 10));
+      stats.set(currentMember.tag, stat);
+    }
+  }
+
+  return stats;
+}
+
+function stateToMember(state, activityStats = new Map()) {
   const member = state.lastMember || {};
   const gain = Math.max(0, (state.currentTrophies || 0) - (state.baselineTrophies || 0));
   const qualified = state.active && !state.disqualified;
@@ -96,6 +173,12 @@ function stateToMember(state) {
     (member.victories3v3 || 0) + (member.soloVictories || 0) + (member.duoVictories || 0);
   const peakGap = Math.max(0, (member.highestTrophies || 0) - (state.currentTrophies || 0));
   const brawlers = compactBrawlers(member.brawlers?.length ? member.brawlers : member.topBrawlers || []);
+  const activity = activityStats.get(state.tag);
+  const activeMinutes = activity?.activeMinutes || 0;
+  const activeHours = activeMinutes / 60;
+  const activeIntervals = activity?.activeIntervals || 0;
+  const activeNetGain = activity?.activeNetGain || 0;
+  const trophyVelocityPerActiveHour = activeHours > 0 ? activeNetGain / activeHours : 0;
 
   return {
     tag: state.tag,
@@ -109,6 +192,18 @@ function stateToMember(state) {
     gain: qualified ? gain : 0,
     lastRunGain: gain,
     previousDisqualifiedGain: state.previousDisqualifiedGain || 0,
+    activeMinutes,
+    activeHours,
+    activeIntervals,
+    activeDays: activity?.activeDays?.size || 0,
+    activeNetGain,
+    activePositiveGain: activity?.activePositiveGain || 0,
+    activeLosses: activity?.activeLosses || 0,
+    bestActiveIntervalGain: activity?.bestActiveIntervalGain || 0,
+    trophyVelocityPerActiveHour,
+    trophyVelocitySampleLabel: getSampleLabel(activeMinutes, activeIntervals),
+    firstActiveAt: activity?.firstActiveAt || null,
+    lastActiveAt: activity?.lastActiveAt || null,
     joinedAt: state.joinedAt,
     baselineAt: state.baselineAt,
     leftAt: state.leftAt || null,
@@ -168,6 +263,7 @@ export function buildLeaderboardFromSnapshots(snapshots, options = {}) {
   const config = getCompetitionConfig();
   const monthKey = ordered[0]?.monthKey || getMonthKey();
   const states = new Map();
+  const activityStats = buildActivityStats(ordered, options);
 
   for (const snapshot of ordered) {
     applySnapshotToState(states, snapshot);
@@ -175,7 +271,7 @@ export function buildLeaderboardFromSnapshots(snapshots, options = {}) {
 
   const latest = ordered.at(-1);
   const qualifiedMembers = [...states.values()]
-    .map(stateToMember)
+    .map((state) => stateToMember(state, activityStats))
     .filter((member) => member.qualified)
     .sort(sortByGain)
     .map((member, index) => ({
@@ -184,7 +280,7 @@ export function buildLeaderboardFromSnapshots(snapshots, options = {}) {
     }));
 
   const disqualifiedMembers = [...states.values()]
-    .map(stateToMember)
+    .map((state) => stateToMember(state, activityStats))
     .filter((member) => !member.qualified)
     .sort((a, b) => new Date(b.leftAt || 0) - new Date(a.leftAt || 0))
     .map((member) => ({
